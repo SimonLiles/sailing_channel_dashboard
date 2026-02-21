@@ -1,21 +1,21 @@
 #!/bin/zsh
 
 # Variables - Update these!
-PROJECT_ID="your-gcp-project-id"
+PROJECT_ID="yt-sailing-dashboard"
 REGION="us-central1"
-REPO="sailing-repo"
+REPO="yt-sailing-dashboard-containers"
 BASE_URL="$REGION-docker.pkg.dev/$PROJECT_ID/$REPO"
 
 echo "Starting Build & Push to Artifact Registry..."
 
 # 1. Build and Push ETL Image
 echo "Building ETL Image..."
-docker build -t $BASE_URL/sailing-etl:latest -f Dockerfile.etl .
+docker build -t $BASE_URL/yt_sailing_channel_etl_job:latest -f etl/Dockerfile.etl .
 docker push $BASE_URL/sailing-etl:latest
 
 # 2. Build and Push Shiny Image
 echo "Building Shiny Image..."
-docker build -t $BASE_URL/sailing-shiny:latest -f Dockerfile.shiny .
+docker build -t $BASE_URL/yt_sailing_channel_shiny:latest -f shiny/Dockerfile.shiny .
 docker push $BASE_URL/sailing-shiny:latest
 
 echo "Deployment complete!"
