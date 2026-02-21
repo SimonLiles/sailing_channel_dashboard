@@ -4,8 +4,15 @@ require(httr)
 require(jsonlite)
 require(dplyr)
 
-get_yt_data <- function(yt_data_api_key, channel_handle) {
-  message('Beginning YT Data API Harvesting...')
+get_yt_data <- function(channel_handle) {
+  message(paste('Querying:', channel_handle))
+  
+  # Retrieve the key from the environment
+  yt_data_api_key <- Sys.getenv("YT_API_KEY")
+  
+  if (yt_key == "") {
+    stop("API Key not found! Ensure YT_API_KEY is set in environment.")
+  }
   
   #Base Query variables
   base <- "https://www.googleapis.com/youtube/v3/"
@@ -26,7 +33,7 @@ get_yt_data <- function(yt_data_api_key, channel_handle) {
   
   #Build the parameter list
   q_channels_param <- paste(paste0("key=", yt_data_api_key),
-                            paste0("forHandle=", channel_handle),
+                            paste0("id=", channel_handle),
                             paste0("part=", parts),
                             sep = "&")
   
