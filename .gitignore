@@ -1,0 +1,36 @@
+# --- R Specific ---
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+.Renviron
+*-Ex.R
+/pacakges/
+/lib/
+/dist/
+.Rapp.history
+
+# --- Data & Secrets (CRITICAL) ---
+# Never commit your JSON keys or local data exports
+*.json
+*.csv
+*.xlsx
+secrets/
+auth/
+.env
+
+# --- Docker & OS ---
+.dockerignore
+Thumb.db
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+
+# --- Project Specific ---
+# If you have a local data folder for testing
+data/raw/
+data/processed/
+logs/
+.DS_Store
+sql/.DS_Store
