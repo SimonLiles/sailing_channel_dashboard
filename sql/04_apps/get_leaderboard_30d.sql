@@ -10,6 +10,7 @@
 SELECT 
     d.channel_title,
     d.channel_handle,
+    d.profile_pic,
     SUM(m.daily_new_views) AS total_views_30d,
     SUM(m.daily_new_subs) AS total_subs_30d,
     -- Growth Velocity: How efficient is this channel at converting views?
@@ -17,14 +18,14 @@ SELECT
     -- Rank them by total new views
     RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC) AS view_rank
 FROM 
-    `your_project.sailing_niche.fct_daily_performance` AS m
+    `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS m
 INNER JOIN 
-    `your_project.sailing_niche.channel_dimensions` AS d 
+    `yt-sailing-dashboard.yt_sailing_data.channel_dimensions` AS d 
     ON m.channel_id = d.channel_id
 WHERE 
     m.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
 GROUP BY 
-    1, 2
+    1, 2, 3
 ORDER BY 
     view_rank ASC
-LIMIT 10;
+LIMIT 100;

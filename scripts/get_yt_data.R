@@ -10,15 +10,15 @@ get_yt_data <- function(channel_handle) {
   # Retrieve the key from the environment
   yt_data_api_key <- Sys.getenv("YT_API_KEY")
   
-  if (yt_key == "") {
+  if (yt_data_api_key == "") {
     stop("API Key not found! Ensure YT_API_KEY is set in environment.")
   }
   
   #Base Query variables
   base <- "https://www.googleapis.com/youtube/v3/"
   
-  channelIDs <- channels$id
-  handles <- channels$handle
+  # channelIDs <- channels$id
+  # handles <- channels$handle
   
   today <- as.character(date())
   
@@ -58,7 +58,11 @@ get_yt_data <- function(channel_handle) {
     channel_data$statistics.subscriberCount = NA
   }
   
-  data.frame(channel_handle,
+  if(is.null(channel_data$brandingSettings.channel.keywords)) {
+    channel_data$brandingSettings.channel.keywords <- NA
+  }
+  
+  data.frame(channel_data$snippet.customUrl,
              channel_data$id, 
              channel_data$snippet.title, 
              channel_data$snippet.description, 
@@ -66,5 +70,7 @@ get_yt_data <- function(channel_handle) {
              channel_data$statistics.viewCount, 
              channel_data$statistics.videoCount, 
              channel_data$statistics.subscriberCount, 
-             channel_data$statistics.hiddenSubscriberCount)
+             channel_data$statistics.hiddenSubscriberCount,
+             channel_data$brandingSettings.channel.keywords,
+             channel_data$snippet.thumbnails.default.url)
 }

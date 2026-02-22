@@ -27,5 +27,5 @@ WHERE NOT EXISTS (
     SELECT 1 
     FROM `yt-sailing-dashboard.yt_sailing_data.daily_metrics_history` AS h
     WHERE h.channel_id = s.channel_id 
-      AND h.date = date
+      AND h.date = CURRENT_DATE()
 );

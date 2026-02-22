@@ -15,7 +15,9 @@ CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.raw_daily_ingest` 
     view_count STRING,
     subscriber_count STRING,
     video_count STRING, 
-    is_sub_count_hidden STRING
+    is_sub_count_hidden STRING,
+    channel_keywords STRING,
+    profile_pic STRING
 );
 
 -- 2. The Permanent Dimension Table (The "Master List")
@@ -27,6 +29,8 @@ CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.channel_dimensi
     channel_description STRING,
     join_date DATE,
     is_sub_count_hidden BOOLEAN,
+    channel_keywords STRING,
+    profile_pic STRING,
     added_by STRING,
     created_at TIMESTAMP,
     updated_at TIMESTAMP

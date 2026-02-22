@@ -14,7 +14,7 @@ WITH daily_aggregates AS (
         SUM(daily_new_subs) AS total_subs,
         COUNT(DISTINCT channel_id) AS active_channels
     FROM 
-        `your_project.sailing_niche.fct_daily_performance`
+        `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance`
     GROUP BY 1
 ),
 ordered_days AS (
@@ -26,14 +26,13 @@ ordered_days AS (
         daily_aggregates
 )
 SELECT 
-    date AS current_date,
+    date AS date,
     total_views AS latest_views,
     total_subs AS latest_subs,
     active_channels,
     -- Calculate Day-over-Day Growth %
-    SAFE_DIVIDE(total_views - prev_day_views, prev_day_views) AS view_growth_pct
+    SAFE_DIVIDE(total_views - prev_day_views, prev_day_views) * 100 AS view_growth_pct
 FROM 
     ordered_days
 ORDER BY 
-    date DESC
-LIMIT 1; -- We only want the single latest snapshot
+    date DESC; -- We only want the single latest snapshot

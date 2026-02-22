@@ -40,7 +40,7 @@ message('Done')
 # 3. YouTube Data Scrape ####
 source("scripts/get_yt_data.R")
 
-raw_yt_data_list <- lapply(channels$id, get_yt_data)
+raw_yt_data_list <- lapply(channels$channel_id, get_yt_data)
 
 raw_yt_data <- do.call(rbind, raw_yt_data_list)
 
@@ -52,7 +52,9 @@ colnames(raw_yt_data) <- c("channel_handle",
                            "view_count",
                            "video_count",
                            "subscriber_count",
-                           "is_sub_count_hidden"
+                           "is_sub_count_hidden",
+                           "channel_keywords",
+                           "profile_pic"
                            )
 
 # Batch Load the data into the raw_daily_ingest table
@@ -67,6 +69,17 @@ dbWriteTable(
 message("Raw data upload complete!")
 
 # 4. Clean data and calculate additional metrics
+
+row_check <- dbGetQuery(connection, 
+                        "SELECT COUNT(*) as cnt 
+                        FROM `yt-sailing-dashboard.yt_sailing_data.raw_daily_ingest`"
+                        )$cnt
+
+if (row_check == 0) {
+  stop("HALT: raw_daily_ingest is empty! Check the API response before proceeding.")
+} else {
+  message(paste("Success: Proceeding with", row_check, "rows of fresh data."))
+}
 
 # Define the sequence of operations
 sql_ops_sequence <- c(

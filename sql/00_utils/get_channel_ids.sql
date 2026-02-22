@@ -1,2 +1,2 @@
-SELECT id, handle
+SELECT channel_id, channel_handle
 FROM channel_dimensions;
