@@ -45,6 +45,7 @@ jobs:
         run: |
           docker build -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
                        -t ${{ env.ETL_IMAGE_BASE }}:latest \
+                       -e YT_API_KEY=${{ env.YT_API_KEY}} \
                        -f etl/Dockerfile.etl .
           docker push ${{ env.ETL_IMAGE_BASE }} --all-tags
 
