@@ -3,6 +3,7 @@
 require(httr)
 require(jsonlite)
 require(dplyr)
+require(here)
 
 get_yt_data <- function(channel_handle) {
   message(paste('Querying:', channel_handle))
