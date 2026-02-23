@@ -32,7 +32,7 @@ source(here("scripts", "run_sql.R"))
 message('Initializing BigQuery connection...')
 
 # Authenticate
-service_account_path <- 'app/secrets/yt-sailing-dashboard-039b13fb9084.json'
+service_account_path <- here(Sys.getenv("SHINY_SERVICE_ACCOUNT_PATH"))
 bq_auth(path = service_account_path)
 
 project <- "yt-sailing-dashboard"

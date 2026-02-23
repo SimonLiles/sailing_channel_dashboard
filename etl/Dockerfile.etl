@@ -12,7 +12,7 @@ RUN mkdir -p /app/sql
 
 
 # Copy the ETL specific code
-COPY etl/main_etl.R /app/
+COPY etl/main.R /app/
 
 # Copy the SHARED functions
 COPY scripts/ /app/scripts/

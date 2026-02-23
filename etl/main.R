@@ -15,7 +15,7 @@ source(here("scripts", "run_sql.R"))
 # 1. Connect to BigQuery ####
 
 # Authenticate
-service_account_path <- 'app/secrets/yt-sailing-dashboard-1a37e4c18a27.json'
+service_account_path <- here(Sys.getenv("ETL_SERVICE_ACCOUNT_PATH"))
 bq_auth(path = service_account_path)
 
 project <- "yt-sailing-dashboard"
