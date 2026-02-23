@@ -24,13 +24,13 @@ library(tidyverse)
 library(ggplot2)
 library(plotly)
 
-source("../scripts/run_sql.R")
+source("scripts/run_sql.R")
 
 #initialize big query connection
 message('Initializing BigQuery connection...')
 
 # Authenticate
-service_account_path <- '../app/secrets/yt-sailing-dashboard-039b13fb9084.json'
+service_account_path <- 'app/secrets/yt-sailing-dashboard-039b13fb9084.json'
 bq_auth(path = service_account_path)
 
 project <- "yt-sailing-dashboard"
@@ -47,13 +47,13 @@ connection <- dbConnect(
 message('\tConnected to BigQuery')
 
 global_summary <- dbGetQuery(connection, 
-                             read_sql("../sql/04_apps/get_global_summary.sql"))
+                             read_sql("sql/04_apps/get_global_summary.sql"))
 
 leaderboard_30d <- dbGetQuery(connection, 
-                              read_sql("../sql/04_apps/get_leaderboard_30d.sql"))
+                              read_sql("sql/04_apps/get_leaderboard_30d.sql"))
 
 channel_lookup <- dbGetQuery(connection,
-                             read_sql("../sql/04_apps/get_channel_lookup.sql"))
+                             read_sql("sql/04_apps/get_channel_lookup.sql"))
 
 # Define UI for application that draws a histogram
 ui <- page_navbar(
@@ -258,7 +258,7 @@ server <- function(input, output, session) {
     req(input$selected_channel) 
     
     dbGetQuery(connection,
-               read_sql("../sql/04_apps/get_channel_profile.sql"),
+               read_sql("sql/04_apps/get_channel_profile.sql"),
                params = list(id = input$selected_channel))
   })
   
@@ -267,7 +267,7 @@ server <- function(input, output, session) {
     req(input$selected_channel) 
     
     dbGetQuery(connection,
-               read_sql("../sql/04_apps/get_channel_history.sql"),
+               read_sql("sql/04_apps/get_channel_history.sql"),
                params = list(id = input$selected_channel))
   })
   
