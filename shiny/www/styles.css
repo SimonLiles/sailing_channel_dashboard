@@ -1,0 +1,24 @@
+.pill-container {
+  display: block !important;  
+  text-align: left;           
+  width: 100%;
+}
+
+.keyword-pill {
+  display: inline-block !important;
+  white-space: nowrap;
+  width: auto !important;
+  max-width: fit-content;
+  padding: 5px 12px;
+  margin: 4px;
+  border-radius: 15px;
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #bbdefb;
+  font-size: 0.85em;
+}
+.keyword-pill:hover {
+  background-color: #0288d1;
+  color: white;
+  cursor: default;
+}
