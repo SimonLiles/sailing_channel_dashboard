@@ -11,7 +11,6 @@ env:
   # The full path to your WIF provider (find this in GCP Console > IAM > Workload Identity)
   WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
   WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-  YT_API_KEY: ${{ secrets.YT_API_KEY }}
   ETL_IMAGE_BASE: us-central1-docker.pkg.dev/yt-sailing-dashboard/yt-sailing-dashboard-containers/yt-sailing-channel-etl
   SHINY_IMAGE_BASE: us-central1-docker.pkg.dev/yt-sailing-dashboard/yt-sailing-dashboard-containers/yt-sailing-shiny
 
@@ -40,8 +39,6 @@ jobs:
 
         # Build and Push ETL Image
       - name: Build & Push ETL
-        env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}
         run: |
           docker build -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
                        -t ${{ env.ETL_IMAGE_BASE }}:latest \
