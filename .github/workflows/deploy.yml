@@ -40,13 +40,12 @@ jobs:
 
         # Build and Push ETL Image
       - name: Build & Push ETL
-        env:
+        environment:
           YT_API_KEY: ${{ env.YT_API_KEY}}
         run: |
           docker build --build-arg YT_API_KEY=${{ env.YT_API_KEY}}
                        -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
                        -t ${{ env.ETL_IMAGE_BASE }}:latest \
-                       -e YT_API_KEY=${{ env.YT_API_KEY}} \
                        -f etl/Dockerfile.etl .
           docker push ${{ env.ETL_IMAGE_BASE }} --all-tags
 
