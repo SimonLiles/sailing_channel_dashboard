@@ -1,0 +1,54 @@
+name: Build and Push to Artifact Registry
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  PROJECT_ID: yt-sailing-dashboard
+  REGION: us-central1
+  REPO_NAME: yt-sailing-dashboard-containers
+  # The full path to your WIF provider (find this in GCP Console > IAM > Workload Identity)
+  WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+  WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+  ETL_IMAGE_BASE: us-central1-docker.pkg.dev/yt-sailing-dashboard/yt-sailing-dashboard-containers/yt-sailing-channel-etl
+  SHINY_IMAGE_BASE: us-central1-docker.pkg.dev/yt-sailing-dashboard/yt-sailing-dashboard-containers/yt-sailing-shiny
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write' # Required for OIDC authentication
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+        # Build and Push ETL Image
+      - name: Build & Push ETL
+        run: |
+          docker build -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+                       -t ${{ env.ETL_IMAGE_BASE }}:latest \
+                       -f etl/Dockerfile.etl .
+          docker push ${{ env.ETL_IMAGE_BASE }} --all-tags
+
+      # Build & Push Shiny Image
+      - name: Build & Push Shiny
+        run: |
+          docker build -t ${{ env.SHINY_IMAGE_BASE }}:${{ github.sha }} \
+                       -t ${{ env.SHINY_IMAGE_BASE }}:latest \
+                       -f shiny/Dockerfile.shiny .
+          docker push ${{ env.SHINY_IMAGE_BASE }} --all-tags
