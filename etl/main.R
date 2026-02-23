@@ -39,7 +39,7 @@ channels <- dbGetQuery(connection, get_channel_ids_query)
 message('Done')
 
 # 3. YouTube Data Scrape ####
-source(here("scripts", "get_yt_data.R"))
+source("scripts", "get_yt_data.R")
 
 raw_yt_data_list <- lapply(channels$channel_id, get_yt_data)
 
