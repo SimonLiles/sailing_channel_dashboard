@@ -165,7 +165,9 @@ server <- function(input, output, session) {
   # Render Global Summary Data ####
   output$new_views_24h <- renderText(formatC(global_summary$latest_views[1], format="d", big.mark=","))
 
-  output$view_growth_pct <- renderText(formatC(global_summary$view_growth_pct[1], format="d", big.mark=","))
+  output$view_growth_pct <- renderText(
+    paste0(formatC(global_summary$view_growth_pct[1], format="d", big.mark=","), "%")
+  )
   
   new_views_24h_color <- ifelse(global_summary$view_growth_pct[1] >= 0, "green", "red")
 
