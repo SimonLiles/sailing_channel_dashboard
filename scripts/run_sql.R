@@ -6,7 +6,7 @@ require(here)
 read_sql <- function(path) {
   if (!file.exists(path))
   {
-    stop(paste("SQL file not found:", path))
+    stop(message("SQL file not found:", path))
   } 
   else 
   {
