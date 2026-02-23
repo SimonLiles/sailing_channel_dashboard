@@ -40,7 +40,7 @@ jobs:
 
         # Build and Push ETL Image
       - name: Build & Push ETL
-        environment:
+        env:
           YT_API_KEY: ${{ env.YT_API_KEY}}
         run: |
           docker build --build-arg YT_API_KEY=${{ env.YT_API_KEY}}
