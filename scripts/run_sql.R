@@ -1,11 +1,12 @@
 require(DBI)
 require(glue)
+require(here)
 
 # Read a SQL file into a single string
 read_sql <- function(path) {
   if (!file.exists(path))
   {
-    stop(paste("SQL file not found:", path))
+    stop(message("SQL file not found:", path))
   } 
   else 
   {
