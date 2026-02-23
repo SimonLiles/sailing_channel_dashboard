@@ -11,11 +11,12 @@ RUN R -e "install.packages('bigrquery')"
 RUN R -e "install.packages('gargle')"
 RUN R -e "install.packages('DBI')"
 
-# Copy over necessary files
-COPY .config/gcloud/yt-sailing-dashboard-1a37e4c18a27.json .config/gcloud/yt-sailing-dashboard-1a37e4c18a27.json
+# Copy over scripts
+COPY ../scripts/run_sql.R scripts/run_sql.R
+COPY ../scripts/get_yt_data.R scripts/get_yt_data.R
 
 # Copy the script over
-COPY collect_data_by_handle.R collect_data_by_handle.R
+COPY main.R main.R
 
 # Run the R script
-CMD R -e "source('collect_data_by_handle.R')"
+CMD R -e "source('main.R')"
