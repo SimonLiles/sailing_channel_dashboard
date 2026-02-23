@@ -43,6 +43,13 @@ get_yt_data <- function(channel_handle) {
   
   # Perform data query
   api_result_channels <- GET(api_call_channels)
+  
+  if (httr::http_error(api_result_channels)) {
+    message("HTTP Error for channel ", channel_handle, ": ", httr::status_code(api_result_channels))
+    message("YouTube API Response: ", httr::content(api_result_channels, "text", encoding = "UTF-8"))
+    return(NULL)
+  }
+  
   json_result_channels <- content(api_result_channels, "text", encoding = "UTF-8")
   
   # Read raw input
@@ -52,7 +59,8 @@ get_yt_data <- function(channel_handle) {
   channel_data <- result_channels$items
   
   if(is.null(channel_data)) {
-    message("channel: ", channel_handle, " is null", appendLF = FALSE)
+    message("channel: ", channel_handle, " returned no data from YouTube.", appendLF = FALSE)
+    return(NULL)
   }
   
   if(channel_data$statistics.hiddenSubscriberCount == TRUE) {
