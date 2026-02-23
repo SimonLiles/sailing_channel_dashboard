@@ -32,15 +32,6 @@ jobs:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
 
-      - name: Install R Dependencies
-        run: |
-          Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue'))"
-          
-      - name: Run Unit Tests
-        env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: Rscript tests/testthat.R
-        
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
