@@ -3,6 +3,9 @@
 # Base R image
 FROM --platform=linux/amd64 rocker/tidyverse
 
+ARG YT_API_KEY=""
+ENV YT_API_KEY=YT_API_KEY
+
 # Install R Dependencies
 RUN R -e "install.packages(c('httr', 'jsonlite', 'dplyr', 'bigrquery', 'gargle', 'DBI', 'glue', 'here'))"
 

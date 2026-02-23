@@ -43,7 +43,8 @@ jobs:
         env:
           YT_API_KEY: ${{ env.YT_API_KEY}}
         run: |
-          docker build -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+          docker build --build-arg YT_API_KEY=${{ env.YT_API_KEY}}
+                       -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
                        -t ${{ env.ETL_IMAGE_BASE }}:latest \
                        -e YT_API_KEY=${{ env.YT_API_KEY}} \
                        -f etl/Dockerfile.etl .
