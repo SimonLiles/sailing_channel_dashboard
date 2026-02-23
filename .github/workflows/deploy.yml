@@ -1,4 +1,4 @@
-name: Build and Push to Artifact Registry
+name: Test, Build, Push to Artifact Registry and Deploy to Cloud Run
 
 on:
   push:
