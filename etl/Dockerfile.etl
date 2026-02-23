@@ -4,19 +4,19 @@
 FROM --platform=linux/amd64 rocker/tidyverse
 
 # Install R Dependencies
-RUN R -e "install.packages('httr')"
-RUN R -e "install.packages('jsonlite')"
-RUN R -e "install.packages('dplyr')"
-RUN R -e "install.packages('bigrquery')"
-RUN R -e "install.packages('gargle')"
-RUN R -e "install.packages('DBI')"
+RUN R -e "install.packages(c('httr', 'jsonlite', 'dplyr', 'bigrquery', 'gargle',
+                             'DBI', 'glue'))"
 
-# Copy over scripts
-COPY ../scripts/run_sql.R scripts/run_sql.R
-COPY ../scripts/get_yt_data.R scripts/get_yt_data.R
+# Create directories
+RUN mkdir -p /app/scripts
 
-# Copy the script over
-COPY main.R main.R
+# Copy the ETL specific code
+COPY etl/main_etl.R /app/
 
-# Run the R script
-CMD R -e "source('main.R')"
+# Copy the SHARED functions
+COPY scripts/run_sql.R /app/scripts/
+
+# Set working directory
+WORKDIR /app
+
+CMD ["Rscript", "main_etl.R"]

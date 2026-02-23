@@ -1,52 +1,29 @@
-# get shiny server plus tidyverse packages image
 FROM --platform=linux/amd64 rocker/shiny-verse:latest
 
-# system libraries of general use
+# System libraries
 RUN apt-get update && apt-get install -y \
-    curl \
-    sudo \
-    pandoc \
-    pandoc-citeproc \
-    libcurl4-gnutls-dev \
-    libcairo2-dev \
-    libxt-dev \
     libssl-dev \
-    libssh2-1-dev\
-    ## clean up
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/ \
-    && rm -rf /tmp/downloaded_packages/ /tmp/*.rds
+    libxml2-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/
 
-# install R packages required 
-# (change it depending on the packages you need)
-#Shiny packages
-RUN R -e "install.packages('shiny', repos='http://cran.rstudio.com/')"
-RUN R -e "install.packages('shinydashboard', repos='http://cran.rstudio.com/')"
-RUN R -e "install.packages('shinydashboardPlus', repos='http://cran.rstudio.com/')"
-RUN R -e "install.packages('shinythemes', repos='http://cran.rstudio.com/')"
-#Data collection packages
-RUN R -e "install.packages('httr', repos='http://cran.rstudio.com/')"
-RUN R -e "install.packages('jsonlite', repos='http://cran.rstudio.com/')"
-RUN R -e "install.packages('dplyr', repos='http://cran.rstudio.com/')"
-#Data presentation packages
+# Install R packages
+RUN R -e "install.packages(c('shinydashboard', 'shinydashboardPlus', 'shinythemes', 
+                             'reactable', 'bslib', 'shinycssloaders', 'httr', 
+                             'jsonlite', 'bigrquery', 'DBI', 'plotly', 'glue'), 
+                           repos='https://cran.rstudio.com/')"
 
-# clean up
-RUN rm -rf /tmp/downloaded_packages/ /tmp/*.rds
+# Create a directory for your shared scripts
+RUN mkdir -p /srv/shiny-server/scripts
 
-# Copy configuration files into the Docker image
-COPY shiny-server.conf  /etc/shiny-server/shiny-server.conf
+# Copy the app code (from the shiny folder)
+COPY shiny/app.R /srv/shiny-server/
+COPY scripts/run_sql.R /srv/shiny-server/scripts/
 
-# Copy shiny app into the Docker image
-COPY app /srv/shiny-server/
+# Set permissions for the shiny user
+RUN chown -R shiny:shiny /srv/shiny-server
 
-RUN rm /srv/shiny-server/index.html
+# Cloud Run uses port 8080 by default
+EXPOSE 8080
 
-# Make the ShinyApp available at port 5000
-EXPOSE 5000
-
-# Copy shiny app execution file into the Docker image
-COPY shiny-server.sh /usr/bin/shiny-server.sh
-
-USER shiny
-
-CMD ["/usr/bin/shiny-server"]
+# This command overrides the default config to listen on the correct port
+CMD ["R", "-e", "shiny::runApp('/srv/shiny-server/app.R', host = '0.0.0.0', port = 8080)"]
