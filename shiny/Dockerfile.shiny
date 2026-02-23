@@ -9,15 +9,20 @@ RUN apt-get update && apt-get install -y \
 # Install R packages
 RUN R -e "install.packages(c('shinydashboard', 'shinydashboardPlus', 'shinythemes', 
                              'reactable', 'bslib', 'shinycssloaders', 'httr', 
-                             'jsonlite', 'bigrquery', 'DBI', 'plotly', 'glue'), 
+                             'jsonlite', 'bigrquery', 'DBI', 'plotly', 'glue', 
+                             'here'), 
                            repos='https://cran.rstudio.com/')"
 
 # Create a directory for your shared scripts
 RUN mkdir -p /srv/shiny-server/scripts
+RUN mkdir -p /srv/shiny-server/sql
 
 # Copy the app code (from the shiny folder)
 COPY shiny/app.R /srv/shiny-server/
 COPY scripts/run_sql.R /srv/shiny-server/scripts/
+COPY sql/ /srv/shiny-server/sql
+
+COPY .here /srv/shiny-server/.here
 
 # Set permissions for the shiny user
 RUN chown -R shiny:shiny /srv/shiny-server

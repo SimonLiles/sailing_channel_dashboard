@@ -9,12 +9,17 @@ RUN R -e "install.packages(c('httr', 'jsonlite', 'dplyr', 'bigrquery', 'gargle',
 
 # Create directories
 RUN mkdir -p /app/scripts
+RUN mkdir -p /app/sql
+
 
 # Copy the ETL specific code
 COPY etl/main_etl.R /app/
 
 # Copy the SHARED functions
-COPY scripts/run_sql.R /app/scripts/
+COPY scripts/ /app/scripts/
+COPY sql/ /app/sql/
+
+COPY .here /app/.here
 
 # Set working directory
 WORKDIR /app

@@ -7,9 +7,10 @@ require(bigrquery)
 require(gargle)
 require(DBI)
 require(glue)
+require(here)
 
 #0. Get helper functions
-source("scripts/run_sql.R")
+source(here("scripts", "run_sql.R"))
 
 # 1. Connect to BigQuery ####
 
@@ -31,14 +32,14 @@ connection <- dbConnect(
 # 2. Get Target IDs ####
 message('Fetching channel list...')
 
-get_channel_ids_query <- read_sql("sql/00_utils/get_channel_ids.sql")
+get_channel_ids_query <- read_sql(here("sql", "00_utils", "get_channel_ids.sql"))
 
 channels <- dbGetQuery(connection, get_channel_ids_query)
 
 message('Done')
 
 # 3. YouTube Data Scrape ####
-source("scripts/get_yt_data.R")
+source("scripts", "get_yt_data.R")
 
 raw_yt_data_list <- lapply(channels$channel_id, get_yt_data)
 
@@ -83,9 +84,9 @@ if (row_check == 0) {
 
 # Define the sequence of operations
 sql_ops_sequence <- c(
-  "sql/01_raw/ops/merge_channel_dims.sql",
-  "sql/01_raw/ops/append_daily_metrics.sql",
-  "sql/03_marts/fct_daily_performance.sql"
+  here("sql", "01_raw", "ops", "merge_channel_dims.sql"),
+  here("sql", "01_raw", "ops", "append_daily_metrics.sql"),
+  here("sql", "03_marts", "fct_daily_performance.sql")
 )
 
 # Execute in order
