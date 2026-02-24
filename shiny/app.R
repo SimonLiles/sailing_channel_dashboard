@@ -63,7 +63,7 @@ ui <- page_navbar(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
   
-  title = "YouTube Sailing Channels Analytics",
+  title = "Sailing YouTube Channels",
   
   # Niche Pulse Page ####
   nav_panel('Niche Pulse',
@@ -155,6 +155,7 @@ ui <- page_navbar(
   
   # Growth Benchmarks Page ####
   nav_panel('Growth Benchmarks',
+    h1('Coming soon.')
   ), # End of Algorithm Performance page
 )
 
