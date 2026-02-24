@@ -22,7 +22,7 @@ The system follows a Medallion Architecture (Raw → Staging → Marts) built en
 ### Data Flow
 
 ``` mermaid
-%%{init: {'theme': 'forest'}}%%
+%%{init: {'theme': 'dark'}}%%
 flowchart LR
     API[YouTube API] -->|R Script / Cloud Run| Raw[(01_Raw: BigQuery)]
     Raw -->|SQL Views| Stg{{02_Staging}}
@@ -39,7 +39,7 @@ flowchart LR
 The schema is optimized for time-series analysis of channel growth.
 
 ```mermaid
-%%{init: {'theme': 'neutral'}}%%
+%%{init: {'theme': 'dark'}}%%
 erDiagram
     %% Entities and Attributes
     CHANNEL_DIMENSIONS {

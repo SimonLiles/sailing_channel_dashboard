@@ -1,4 +1,4 @@
-%%{init: {'theme': 'base'}}%%
+%%{init: {'theme': 'dark'}}%%
 flowchart LR
     API[YouTube API] -->|R Script / Cloud Run| Raw[(01_Raw: BigQuery)]
     Raw -->|SQL Views| Stg{{02_Staging}}
