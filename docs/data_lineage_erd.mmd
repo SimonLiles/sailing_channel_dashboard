@@ -1,4 +1,4 @@
-%%{init: {'theme': 'base'}}%%
+%%{init: {'theme': 'dark'}}%%
 
 flowchart LR
     %% Define Subgraphs for Medallion Layers
@@ -44,9 +44,9 @@ flowchart LR
     Dim -->|Filter by @id| App3
 
     %% Styling
-    classDef transient fill:#f9f9f9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef permanent fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    classDef view fill:#cce5ff,stroke:#007bff,stroke-width:2px;
+    classDef transient stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef permanent stroke:#28a745,stroke-width:2px;
+    classDef view stroke:#007bff,stroke-width:2px;
     
     class Ingest transient;
     class Dim,Hist,FctPerf permanent;

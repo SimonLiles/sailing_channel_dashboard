@@ -23,15 +23,58 @@ The system follows a Medallion Architecture (Raw → Staging → Marts) built en
 
 ``` mermaid
 %%{init: {'theme': 'dark'}}%%
-flowchart LR
-    API[YouTube API] -->|R Script / Cloud Run| Raw[(01_Raw: BigQuery)]
-    Raw -->|SQL Views| Stg{{02_Staging}}
-    Stg -->|Window Functions| Marts[(03_Marts: Performance)]
-    Marts -->|Aggregated Logic| App([04_Apps: Shiny UI])
 
-    subgraph Orchestration
-    GS[Cloud Scheduler] -->|Trigger| CR[Cloud Run]
+flowchart LR
+    %% Define Subgraphs for Medallion Layers
+    
+    subgraph Layer_01_Raw ["01_Raw (Landing & History)"]
+        direction TB
+        Ingest[(raw_daily_ingest\n*Transient*)]
+        Dim[(channel_dimensions\n*SCD Type 1*)]
+        Hist[(daily_metrics_history\n*Partitioned Fact*)]
     end
+
+    subgraph Layer_02_Staging ["02_Staging (Transform & Cast)"]
+        direction TB
+        StgView{{vw_stg_daily_metrics}}
+    end
+
+    subgraph Layer_03_Marts ["03_Marts (Business Logic)"]
+        direction TB
+        FctPerf[(fct_daily_performance)]
+    end
+
+    subgraph Layer_04_Apps ["04_Apps (Dashboard UI Serving)"]
+        direction TB
+        App1([Global Summary])
+        App2([30-Day Leaderboard])
+        App3([Channel History & Trend])
+    end
+
+    %% Define Data Flow Connections
+    API_Source[YouTube API / R Script] --> Ingest
+    
+    Ingest -->|Raw Strings| StgView
+    
+    StgView -->|MERGE: Updates & Inserts| Dim
+    StgView -->|INSERT: NOT EXISTS| Hist
+    
+    Hist -->|Window Functions & Lags| FctPerf
+    
+    FctPerf -->|Aggregate| App1
+    FctPerf -->|Join w/ Dims| App2
+    FctPerf -->|Filter by @id| App3
+    Dim --> App2
+    Dim -->|Filter by @id| App3
+
+    %% Styling
+    classDef transient stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef permanent stroke:#28a745,stroke-width:2px;
+    classDef view stroke:#007bff,stroke-width:2px;
+    
+    class Ingest transient;
+    class Dim,Hist,FctPerf permanent;
+    class StgView view;
 ```
 
 ### Data Model
