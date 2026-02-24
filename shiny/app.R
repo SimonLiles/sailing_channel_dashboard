@@ -155,7 +155,7 @@ ui <- page_navbar(
   
   # Growth Benchmarks Page ####
   nav_panel('Growth Benchmarks',
-    h1('Coming soon.')
+    h1('In Development. Coming soon.')
   ), # End of Algorithm Performance page
 )
 
