@@ -73,6 +73,12 @@ jobs:
       - name: Who Am I?
         run: gcloud auth list
         
+      - name: List Cloud Run Services
+        run: |
+          gcloud run services list \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --region us-central1 # (Or whatever region it actually is)
+            
       - name: Deploy Shiny to Cloud Run
         run: |
           gcloud run deploy yt-sailing-shiny \
