@@ -85,6 +85,13 @@ erDiagram
 ```
 
 ## 🛠 Tech Stack
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| Language | R (tidyverse, Shiny) | ETL Orchestration & UI Development |
+| Database | Google BigQuery | Scalable data warehousing & SQL transformations |
+| Compute | Google Cloud Run | Serverless execution of ETL and Shiny App |
+| CI/CD | GitHub Actions | Automated testing and container deployment |
+| Container | Docker | Environment parity across local and productio |
 
 ## 📈 Key Insight: The Algorithmic Floor
 By analyzing 1,000+ channels, the Growth Benchmarks page visualizes a power law relationship between subscriber base and views-per-video. This allows creators to see if they are performing above or below the "floor" for their specific size.
