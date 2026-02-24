@@ -1,0 +1,46 @@
+%%{init: {'theme': 'dark'}}%%
+
+erDiagram
+    %% Entities and Attributes
+    CHANNEL_DIMENSIONS {
+        STRING channel_id PK
+        STRING channel_handle "NOT NULL"
+        BOOLEAN is_active "DEFAULT TRUE"
+        STRING channel_title
+        STRING channel_description
+        DATE join_date
+        BOOLEAN is_sub_count_hidden
+        STRING channel_keywords
+        STRING profile_pic
+        STRING added_by
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    DAILY_METRICS_HISTORY {
+        STRING channel_id PK, FK
+        DATE date PK
+        INT64 view_count
+        INT64 subscriber_count
+        INT64 video_count
+        TIMESTAMP created_at
+    }
+
+    FCT_DAILY_PERFORMANCE {
+        STRING channel_id PK, FK
+        DATE date PK
+        INT64 view_count
+        INT64 video_count
+        INT64 subscriber_count
+        INT64 daily_new_views
+        INT64 daily_new_subs
+        FLOAT64 lifetime_views_per_vid
+        FLOAT64 lifetime_views_per_sub
+        FLOAT64 lifetime_subs_per_vid
+        FLOAT64 views_moving_avg_7d
+        FLOAT64 sub_velocity_per_10k
+    }
+
+    %% Relationships
+    CHANNEL_DIMENSIONS ||--o{ DAILY_METRICS_HISTORY : "tracks daily metrics for"
+    CHANNEL_DIMENSIONS ||--o{ FCT_DAILY_PERFORMANCE : "calculates performance for"
