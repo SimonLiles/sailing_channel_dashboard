@@ -1,0 +1,10 @@
+%%{init: {'theme': 'dark'}}%%
+flowchart LR
+    API[YouTube API] -->|R Script / Cloud Run| Raw[(01_Raw: BigQuery)]
+    Raw -->|SQL Views| Stg{{02_Staging}}
+    Stg -->|Window Functions| Marts[(03_Marts: Performance)]
+    Marts -->|Aggregated Logic| App([04_Apps: Shiny UI])
+
+    subgraph Orchestration
+    GS[Cloud Scheduler] -->|Trigger| CR[Cloud Run]
+    end
