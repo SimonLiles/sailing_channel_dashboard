@@ -70,10 +70,14 @@ jobs:
                        -f shiny/Dockerfile.shiny .
           docker push ${{ env.SHINY_IMAGE_BASE }} --all-tags
           
+      - name: Who Am I?
+        run: gcloud auth list
+        
       - name: Deploy Shiny to Cloud Run
         run: |
           gcloud run deploy yt-sailing-shiny \
             --image ${{ env.SHINY_IMAGE_BASE }}:latest \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated
@@ -82,4 +86,5 @@ jobs:
         run: |
           gcloud run jobs update yt-sailing-channel-etl-job \
             --image ${{ env.ETL_IMAGE_BASE }}:latest \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
             --region us-central1
