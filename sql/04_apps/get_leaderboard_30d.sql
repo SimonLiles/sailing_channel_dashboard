@@ -8,14 +8,46 @@
 ==================================================================== */
 
 SELECT
-    RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC) AS view_rank,
+    -- channel dimensions
     d.profile_pic,
     d.channel_title,
     d.channel_handle,
+    
+    -- Channel Lifetime metrics
+    MAX(m.subscriber_count) AS subscriber_count,
+    MAX(m.view_count) AS view_count,
+    MAX(m.video_count) AS video_count,
+    
+    -- 30 day sums
     SUM(m.daily_new_views) AS total_views_30d,
     SUM(m.daily_new_subs) AS total_subs_30d,
+    
     -- Growth Velocity: How efficient is this channel at converting views?
     SAFE_DIVIDE(SUM(m.daily_new_subs), SUM(m.daily_new_views)) * 1000 AS sub_conversion_rate,
+    
+    -- Ranking and percentile for subscriber count
+    RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_rank,
+    PERCENT_RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_percentile,
+    
+    -- Ranking and percentile for lifetime views
+    RANK() OVER (ORDER BY MAX(m.view_count) DESC) AS lifetime_view_rank,
+    PERCENT_RANK() OVER (ORDER BY MAX(m.view_count) DESC) AS lifetime_view_percentile,
+
+    -- Ranking and percentile for video count
+    RANK() OVER (ORDER BY MAX(m.video_count) DESC) AS video_count_rank,
+    PERCENT_RANK() OVER (ORDER BY MAX(m.video_count) DESC) AS video_count_percentile,
+    
+    -- Ranking and percentile for daily views
+    RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC) AS view_rank,
+    PERCENT_RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC) AS view_percentile,
+    
+    -- Ranking and percentile for 7d average views
+    RANK() OVER (ORDER BY SUM(m.views_moving_avg_7d) DESC) AS view_7d_avg_rank,
+    PERCENT_RANK() OVER (ORDER BY SUM(m.views_moving_avg_7d) DESC) AS view_7d_avg_percentile,
+    
+    -- Ranking and perecentile for daily subs
+    RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC) AS daily_sub_rank,
+    PERCENT_RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC) AS daily_sub_percentile
 FROM 
     `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS m
 INNER JOIN 
@@ -24,6 +56,6 @@ INNER JOIN
 WHERE 
     m.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
 GROUP BY 
-    2, 3, 4
+    1, 2, 3
 ORDER BY 
     view_rank ASC;
