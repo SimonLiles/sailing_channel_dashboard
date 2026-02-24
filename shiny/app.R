@@ -73,6 +73,7 @@ ui <- page_navbar(
       value_box(
         title = "New Views (Last 24h)",
         value = textOutput("new_views_24h"),
+        p(textOutput("avg_daily_views")),
         fill = FALSE,
       ),
       value_box(
@@ -83,6 +84,7 @@ ui <- page_navbar(
       value_box(
         title = "New Subscribers (Last 24h)",
         value = textOutput("new_subs_24h"),
+        p(textOutput("avg_daily_subs")),
         fill = FALSE,
       ),
       value_box(
@@ -95,7 +97,7 @@ ui <- page_navbar(
     # Reactive Plot
     card(
       full_screen = TRUE,
-      card_header("Macro Trend Plot"),
+      card_header("Niche Trends"),
       layout_sidebar(
         sidebar = sidebar(
           title = "Plot Controls",
@@ -106,8 +108,10 @@ ui <- page_navbar(
             inputId = "macro_plot_column_selection",
             label = "Column Selection",
             choices = c("Daily Views", 
+                        "Average Daily Views",
                         "Daily Views Growth %", 
                         "Daily Sub Growth", 
+                        "Average Daily Sub Growth",
                         "Active Channels")
           ),
           
@@ -177,6 +181,12 @@ server <- function(input, output, session) {
   output$new_subs_24h <- renderText(formatC(global_summary$latest_subs[1], format="d", big.mark=",")) 
   
   output$active_channels <- renderText(formatC(global_summary$active_channels[1], format="d", big.mark=",")) 
+
+  output$avg_daily_views <- renderText(paste("Average New Views (Last 24h):", 
+                                             formatC(global_summary$avg_daily_views[1], format="d", big.mark=","))) 
+
+  output$avg_daily_subs <- renderText(paste("Average New Subscribers (Last 24h):", 
+                                            formatC(global_summary$avg_daily_subs[1], format="d", big.mark=","))) 
   
   ## Render Macro Trend Plot ####
   output$macro_trend_plot <- renderPlot({
@@ -190,11 +200,17 @@ server <- function(input, output, session) {
       "Daily Views" = {
         global_summary_filtered$data <- global_summary_filtered$latest_views
       },
+      "Average Daily Views" = {
+        global_summary_filtered$data <- global_summary_filtered$avg_daily_views
+      },
       "Daily Views Growth %" = {
         global_summary_filtered$data <- global_summary_filtered$view_growth_pct
       },
       "Daily Sub Growth" = {
         global_summary_filtered$data <- global_summary_filtered$latest_subs
+      },
+      "Average Daily Sub Growth" = {
+        global_summary_filtered$data <- global_summary_filtered$avg_daily_subs
       },
       "Active Channels" = {
         global_summary_filtered$data <- global_summary_filtered$active_channels
