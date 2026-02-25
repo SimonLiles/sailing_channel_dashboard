@@ -25,6 +25,14 @@ SELECT
     -- Growth Velocity: How efficient is this channel at converting views?
     SAFE_DIVIDE(SUM(m.daily_new_subs), SUM(m.daily_new_views)) * 1000 AS sub_conversion_rate,
     
+    ARRAY_LAST(
+      ARRAY_AGG(m.views_moving_avg_7d ORDER BY m.date)
+    ) AS views_moving_avg_7d,
+    
+    ARRAY_LAST(
+      ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
+    ) AS daily_new_subs,
+    
     -- Ranking and percentile for subscriber count
     RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_rank,
     PERCENT_RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_percentile,
