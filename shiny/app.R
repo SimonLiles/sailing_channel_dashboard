@@ -154,7 +154,14 @@ ui <- page_navbar(
   
   # The Leaderboard Page ####
   nav_panel('The Leaderboard',
-    reactableOutput("leaderboard_table"),
+    radioButtons("leaderboard_rank_by",
+      label = "Rank By:",
+      choices = c("Subscribers", "Lifetime Views", "Video Count", "Views (30d)",
+                  "7 Day Avg Views", "Subscriber Growth (30d)"),
+      inline = TRUE,
+      selected = "Views (30d)"
+    ),
+    uiOutput("leaderboard_reactable")
   ), # End of Leaderboard page
   
   # Growth Benchmarks Page ####
@@ -227,41 +234,137 @@ server <- function(input, output, session) {
   })
   
   # Render Leader Board Data ####
-  output$leaderboard_table <- renderReactable({
-    reactable(
-      leaderboard_30d,
-      columns = list(
-        view_rank = colDef(
-          name = "View Rank",
-          maxWidth = 100
-        ),
-        profile_pic = colDef(
-          name = "", 
-          maxWidth = 60,
-          cell = function(value) {
-            # Render the HTML image tag
-            tags$img(
-              src = value, 
-              height = "40px", 
-              width = "40px",
-              style = "border-radius: 50%; object-fit: cover;" # Makes them circular
-            )
-          }
-        ),
-        channel_title = colDef(name = "Creator"),
-        channel_handle = colDef(name = "Handle"),
-        total_views_30d = colDef(name = "Views (30d)", format = colFormat(separators = TRUE)),
-        total_subs_30d = colDef(name = "Subscribers (30d)", format = colFormat(separators = TRUE)),
-        sub_conversion_rate = colDef(name = "Conversion Rate\n(subs / 1,000 views)", format = colFormat(digits = 2))
-      ),
-      highlight = TRUE,
-      striped = TRUE,
-      searchable = TRUE,
-      filterable = FALSE,
-      showPageSizeOptions = TRUE,
-      compact = FALSE,
-    )
-  })
+  ## Column Selection ####
+  channel_dim_cols <- c("profile_pic", "channel_title", "channel_handle",
+                        "subscriber_count", "view_count", "video_count", "total_views_30d", "views_moving_avg_7d", "total_subs_30d")
+  
+  rank_subs_cols <- c("sub_rank", channel_dim_cols)
+  rank_lifetime_views_cols <- c("lifetime_view_rank", channel_dim_cols)
+  rank_video_count_cols <- c("video_count_rank", channel_dim_cols)
+  rank_views_cols <- c("view_rank", channel_dim_cols)
+  rank_view_7d_avg_cols <- c("view_7d_avg_rank", channel_dim_cols)
+  rank_daily_sub_cols <- c("daily_sub_rank", channel_dim_cols)
+  
+  column_selection <- rank_views_cols
+  
+  ## Column Name Selection ####
+  channel_dimensions_colDefs <- list(
+    profile_pic = colDef(
+      name = "", 
+      maxWidth = 60,
+      cell = function(value) {
+        # Render the HTML image tag
+        tags$img(
+          src = value, 
+          height = "40px", 
+          width = "40px",
+          style = "border-radius: 50%; object-fit: cover;" # Makes them circular
+        )
+      }
+    ),
+    channel_title = colDef(name = "Creator"),
+    channel_handle = colDef(name = "Handle"), 
+    
+    subscriber_count = colDef(name = "Subscribers", format = colFormat(separators = TRUE)),
+    view_count = colDef(name = "Lifetime View Count", format = colFormat(separators = TRUE)),
+    video_count = colDef(name = "Video Count", format = colFormat(separators = TRUE)),
+    
+    total_views_30d = colDef(name = "Views (30d)", format = colFormat(separators = TRUE)),
+    views_moving_avg_7d = colDef(name = "7 Day Avg Views", format = colFormat(separators = TRUE)),
+    total_subs_30d = colDef(name = "Subscriber Growth (30d)", format = colFormat(separators = TRUE))
+  )
+  
+  rank_subs_colDefs <- c(
+    list(sub_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  rank_lifetime_views_colDefs <- c(
+    list(lifetime_view_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  rank_video_count_colDefs <- c(
+    list(video_count_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  rank_views_colDefs <- c(
+    list(view_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  rank_view_7d_avg_colDefs <- c(
+    list(view_7d_avg_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  rank_daily_sub_colDefs <- c(
+    list(daily_sub_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  
+  leaderboard_colDefs <- rank_views_cols
+  
+  ## Build the leaderboard table ####
+  output$leaderboard_reactable <- renderUI(
+    output$leaderboard_table <- renderReactable({
+      switch(input$leaderboard_rank_by,
+         "Subscribers" = {
+           column_selection <- rank_subs_cols
+           leaderboard_colDefs <- rank_subs_colDefs
+         },
+         "Lifetime Views" = {
+           column_selection <- rank_lifetime_views_cols
+           leaderboard_colDefs <- rank_lifetime_views_colDefs
+         },
+         "Video Count" = {
+           column_selection <- rank_video_count_cols
+           leaderboard_colDefs <- rank_video_count_colDefs
+         },
+         "Views (30d)" = {
+           column_selection <- rank_views_cols
+           leaderboard_colDefs <- rank_views_colDefs
+         },
+         "7 Day Avg Views" = {
+           column_selection <- rank_view_7d_avg_cols
+           leaderboard_colDefs <- rank_view_7d_avg_colDefs
+         },
+         "Subscriber Growth (30d)" = {
+           column_selection <- rank_daily_sub_cols
+           leaderboard_colDefs <- rank_daily_sub_colDefs
+         }
+      )
+      
+      leaderboard_30d_sorted <- leaderboard_30d %>%
+        select(all_of(column_selection)) %>%
+        arrange(pick(1))
+      
+      reactable(
+        leaderboard_30d_sorted,
+        columns = leaderboard_colDefs,
+        highlight = TRUE,
+        striped = TRUE,
+        searchable = TRUE,
+        filterable = FALSE,
+        showPageSizeOptions = TRUE,
+        compact = FALSE,
+      )
+    })
+  )
   
   # Get and Render Channel Explorer data ####
   # Load the search bar with channels as user searches
