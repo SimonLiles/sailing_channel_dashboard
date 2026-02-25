@@ -34,27 +34,27 @@ SELECT
     ) AS daily_new_subs,
     
     -- Ranking and percentile for subscriber count
-    RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_rank,
+    DENSE_RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_rank,
     PERCENT_RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_percentile,
     
     -- Ranking and percentile for lifetime views
-    RANK() OVER (ORDER BY MAX(m.view_count) DESC) AS lifetime_view_rank,
+    DENSE_RANK() OVER (ORDER BY MAX(m.view_count) DESC) AS lifetime_view_rank,
     PERCENT_RANK() OVER (ORDER BY MAX(m.view_count) DESC) AS lifetime_view_percentile,
 
     -- Ranking and percentile for video count
-    RANK() OVER (ORDER BY MAX(m.video_count) DESC) AS video_count_rank,
+    DENSE_RANK() OVER (ORDER BY MAX(m.video_count) DESC) AS video_count_rank,
     PERCENT_RANK() OVER (ORDER BY MAX(m.video_count) DESC) AS video_count_percentile,
     
     -- Ranking and percentile for daily views
-    RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC) AS view_rank,
+    DENSE_RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC) AS view_rank,
     PERCENT_RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC) AS view_percentile,
     
     -- Ranking and percentile for 7d average views
-    RANK() OVER (ORDER BY SUM(m.views_moving_avg_7d) DESC) AS view_7d_avg_rank,
+    DENSE_RANK() OVER (ORDER BY SUM(m.views_moving_avg_7d) DESC) AS view_7d_avg_rank,
     PERCENT_RANK() OVER (ORDER BY SUM(m.views_moving_avg_7d) DESC) AS view_7d_avg_percentile,
     
     -- Ranking and perecentile for daily subs
-    RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC) AS daily_sub_rank,
+    DENSE_RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC) AS daily_sub_rank,
     PERCENT_RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC) AS daily_sub_percentile
 FROM 
     `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS m
