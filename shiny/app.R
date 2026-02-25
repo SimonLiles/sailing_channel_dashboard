@@ -63,7 +63,7 @@ ui <- page_navbar(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
   
-  title = "Sailing YouTube Channels",
+  title = "Sailing Creator Analytics",
   
   # Niche Pulse Page ####
   nav_panel('Niche Pulse',
