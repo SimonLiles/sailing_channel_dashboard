@@ -9,10 +9,11 @@
 
 SELECT
     -- channel dimensions
+    d.channel_id,
     d.profile_pic,
     d.channel_title,
     d.channel_handle,
-    
+
     -- Channel Lifetime metrics
     MAX(m.subscriber_count) AS subscriber_count,
     MAX(m.view_count) AS view_count,
@@ -64,6 +65,6 @@ INNER JOIN
 WHERE 
     m.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
 GROUP BY 
-    1, 2, 3
+    1, 2, 3, 4
 ORDER BY 
     view_rank ASC;
