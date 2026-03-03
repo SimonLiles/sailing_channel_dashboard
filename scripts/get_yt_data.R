@@ -52,6 +52,7 @@ get_yt_data <- function(channel_handle) {
   
   if(is.null(channel_data)) {
     message("channel: ", channel_handle, " is null", appendLF = FALSE)
+    return(NULL)
   }
   
   if(channel_data$statistics.hiddenSubscriberCount == TRUE) {

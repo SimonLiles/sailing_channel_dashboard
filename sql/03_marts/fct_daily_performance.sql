@@ -18,7 +18,7 @@ WITH daily_diffs AS (
     -- Calculate the "New Views" gained today by comparing to yesterday
     view_count - LAG(view_count) OVER (PARTITION BY channel_id ORDER BY date) AS daily_new_views,
     -- Calculate "New Subs"
-    subscriber_count - LAG(subscriber_count) OVER (PARTITION BY channel_id ORDER BY date) AS daily_new_subs
+    subscriber_count - LAG(subscriber_count) OVER (PARTITION BY channel_id ORDER BY date) AS daily_new_subs,
     -- Calculate "New Videos" tracking activity by the channel
     video_count - LAG(video_count) OVER (PARTITION BY channel_id ORDER BY date) AS daily_new_videos
   FROM 
