@@ -752,7 +752,7 @@ server <- function(input, output, session) {
         ),
       ),
       
-      ### Algorithmic Performance Chart ####
+      ### Algorithmic Performance Charts ####
       card(
         card_header("Algorithmic Performance"),
         # Render the plot
@@ -787,13 +787,27 @@ server <- function(input, output, session) {
           obvious, this is YouTube's algorithmic floor. Given a channel's size, 
           it should performby at least a certain amount. "),
         fill = TRUE
+      ), 
+      
+      ### Audience Activation Chart ####
+      card(
+        card_header("Audience Activation"),
+        card(
+          plotlyOutput("audience_activation_30d_chart"),
+          full_screen = TRUE, 
+          fill = TRUE
+        ),
+        
+        # Plot Explanation
+        p("Explanation for the above plot as soon as I understand it.")
       )
     )
   })
   
+  ## Make the Growth Metric Plots ####
   output$algorithm_performance_chart <- renderPlotly(
     ggplotly(
-      # tooltip = "text",
+      tooltip = "text",
       
       ggplot(leaderboard_30d, 
              aes(x = subscriber_count, y = lifetime_views_per_vid)
@@ -818,7 +832,7 @@ server <- function(input, output, session) {
   
   output$algorithm_performance_30d_chart <- renderPlotly(
     ggplotly(
-      # tooltip = "text",
+      tooltip = "text",
       
       ggplot(leaderboard_30d, 
              aes(x = subscriber_count, y = views_per_vid_30d)
@@ -833,6 +847,31 @@ server <- function(input, output, session) {
         scale_y_log10(labels = label_number()) +
         ggtitle("Channel Performance, 30 Day Views per Video x Subscriber Count, log 10 scales") + 
         labs(x = "Subscriber Count", y = "Views per Video (30 Days)") +
+        theme_minimal() +
+        theme(
+          legend.position = "left",
+          # panel.grid.minor.x = element_line(color = "grey", linetype = "dotted", linewidth = 0.2)
+        )
+    )
+  )
+  
+  output$audience_activation_30d_chart <- renderPlotly(
+    ggplotly(
+      tooltip = "text",
+      
+      ggplot(leaderboard_30d, 
+             aes(x = subscriber_count, y = views_per_sub_30d)
+      ) + 
+        geom_point(alpha = 1, color = "black", aes(text = channel_handle)) + 
+        geom_smooth(method = "lm") +
+        annotate(geom = "point", x = channel_growth_metrics()$subscriber_count, 
+                 y = channel_growth_metrics()$views_per_sub_30d,
+                 text = channel_growth_metrics()$channel_handle, color = "red", 
+                 size = 3, shape = "star") +
+        scale_x_log10(labels = label_number()) +
+        scale_y_log10(labels = label_number()) +
+        ggtitle("Audience Activation, 30 Day Views per Subscriber x Subscriber Count, log 10 scales") + 
+        labs(x = "Subscriber Count", y = "Views per Subscriber (30 Days)") +
         theme_minimal() +
         theme(
           legend.position = "left",
