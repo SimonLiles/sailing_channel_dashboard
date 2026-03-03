@@ -59,7 +59,7 @@ leaderboard_30d <- dbGetQuery(connection,
 channel_lookup <- dbGetQuery(connection,
                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
 
-# Define UI for application that draws a histogram
+# UI Code: Define frontend, user interface
 ui <- page_navbar(
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
@@ -140,6 +140,7 @@ ui <- page_navbar(
       column(12, align = "center",
        selectizeInput("selected_channel", "Search for a Channel:", 
                         choices = "",
+                        selected = "",
                         options = list(
                           placeholder = 'Type a channel name...', 
                           allowClear = TRUE,
@@ -168,14 +169,31 @@ ui <- page_navbar(
   
   # Growth Benchmarks Page ####
   nav_panel('Growth Benchmarks',
-    h1('In Development. Coming soon.')
+    # The Search Bar (always visible at the top)
+    fluidRow(
+      column(12, align = "center",
+        selectizeInput("selected_channel_benchmarks", "Search for a Channel:", 
+                        choices = "",
+                        selected = "",
+                        options = list(
+                          placeholder = 'Type a channel name...', 
+                          allowClear = TRUE,
+                          minLength = 3,
+                          maxOptions = 10
+                        ),
+        ),
+      ),
+    ), # End of Search bar
+    
+    # The Data Area (Hidden until a channel is selected)
+    uiOutput("growth_metrics_ui"),
   ), # End of Algorithm Performance page
 )
 
-# Define server logic required to draw a histogram
+# server code: Define backend and functionality
 server <- function(input, output, session) {
   observe({
-    print(paste("Selected Channel ID:", input$selected_channel))
+    print(paste("Selected Channel ID:", input$selected_channel_benchmarks))
   })
   
   # Render Global Summary Data ####
@@ -370,12 +388,36 @@ server <- function(input, output, session) {
   
   # Get and Render Channel Explorer data ####
   # Load the search bar with channels as user searches
+  
+  # Selectize for Creator Explorer page
   updateSelectizeInput(
-    session, 
-    "selected_channel", 
-    choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title), 
+    session,
+    "selected_channel",
+    choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title),
     server = TRUE
   )
+  
+  # observeEvent(input$selected_channel, {
+  #   selected_channel <- input$selected_channel
+  #   if(input$selected_channel != input$selected_channel_benchmarks) {
+  #     updateSelectizeInput(session, 
+  #                          "selected_channel_benchmarks", 
+  #                          choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title), 
+  #                          server = TRUE,
+  #                          selected = input$selected_channel)
+  #   }
+  # }, ignoreInit = TRUE)
+  # 
+  # observeEvent(input$selected_channel_benchmarks, {
+  #   selected_channel <- input$selected_channel_benchmarks
+  #   if(input$selected_channel_benchmarks != input$selected_channel) {
+  #     updateSelectizeInput(session, 
+  #                          "selected_channel", 
+  #                          choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title), 
+  #                          server = TRUE,
+  #                          selected = input$selected_channel_benchmarks)
+  #   }
+  # }, ignoreInit = TRUE)
   
   channel_profile <- reactive({
     # This acts as the bouncer. If nothing is selected, STOP and show nothing.
@@ -645,6 +687,91 @@ server <- function(input, output, session) {
   })
   
   # Get Growth Benchmarks
+  # Load the search bar with channels as user searches
+  updateSelectizeInput(
+    session, 
+    "selected_channel_benchmarks", 
+    choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title), 
+    server = TRUE
+  )
+  
+  channel_growth_metrics <- reactive({
+    # This acts as the bouncer. If nothing is selected, STOP and show nothing.
+    req(input$selected_channel_benchmarks) 
+    
+    leaderboard_30d %>%
+      filter(channel_id == input$selected_channel_benchmarks)
+  })
+  
+  output$growth_metrics_ui <- renderUI({
+    req(input$selected_channel_benchmarks)
+    
+    tagList(
+      # Channel Identifiers
+      fluidRow(
+        h1(channel_growth_metrics()$channel_title)
+      ),
+      
+      ### Top Metrics in Value Boxes ####
+      layout_columns(
+        fill = FALSE,
+        value_box(
+          title = "Views past 30 days",
+          value = channel_growth_metrics()$total_views_30d,
+          p(paste0(channel_growth_metrics()$view_percentile,
+                   "th perecentile")),
+          fill = FALSE
+        ),
+        value_box(
+          title = "7 Day Average Views",
+          value = channel_growth_metrics()$views_moving_avg_7d,
+          p(paste0(channel_growth_metrics()$view_7d_avg_percentile,
+                   "th perecentile")),
+          fill = FALSE
+        ),
+        value_box(
+          title = "New Subscribers past 30 days",
+          value = channel_growth_metrics()$daily_new_subs,
+          p(paste0(channel_growth_metrics()$daily_sub_percentile,
+                   "th perecentile")),
+          fill = FALSE
+        ),
+      ),
+      
+      ### Algorithmic Performance Chart ####
+      card(
+        card_header("Algorithmic Performance"),
+        # Render the plot
+        plotlyOutput("algorithm_performance_chart"),
+        # Plot Explanation
+        p("Here I break it down for ya!"),
+        full_screen = TRUE, 
+        fill = TRUE
+      )
+    )
+  })
+  
+  output$algorithm_performance_chart <- renderPlotly(
+    ggplotly(
+      tooltip = "text",
+      
+      ggplot(leaderboard_30d, 
+             aes(x = subscriber_count, y = lifetime_views_per_vid,
+                 text = channel_handle
+                 )
+             ) + 
+        geom_point(alpha = 0.8, color = "darkblue") + 
+        geom_point(data = channel_growth_metrics(),
+                   aes(x = subscriber_count, y = lifetime_views_per_vid,
+                       text = channel_handle), 
+                   color = "red", size = 5, shape = "star") + 
+        scale_x_log10(labels = label_number()) +
+        scale_y_log10(labels = label_number()) +
+        ggtitle("Channel Performance, Lifetime Views per Video x Subscriber Count, log 10 scales") + 
+        labs(x = "Subscriber Count", y = "Views per Video (Lifetime)") + 
+        theme(legend.position = "left")
+      )
+  )
 }
 
 # Run the application 
