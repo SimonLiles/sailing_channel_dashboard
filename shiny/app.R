@@ -160,7 +160,8 @@ ui <- page_navbar(
     radioButtons("leaderboard_rank_by",
       label = "Rank By:",
       choices = c("Subscribers", "Lifetime Views", "Video Count", "Views (30d)",
-                  "7 Day Avg Views", "Subscriber Growth (30d)"),
+                  "7 Day Avg Views", "Subscriber Growth (30d)", "Views per Video (30d)", 
+                  "Views per Subscriber (30d)"),
       inline = TRUE,
       selected = "Views (30d)"
     ),
@@ -256,7 +257,9 @@ server <- function(input, output, session) {
   # Render Leader Board Data ####
   ## Column Selection ####
   channel_dim_cols <- c("profile_pic", "channel_title", "channel_handle",
-                        "subscriber_count", "view_count", "video_count", "total_views_30d", "views_moving_avg_7d", "total_subs_30d")
+                        "subscriber_count", "view_count", "video_count", 
+                        "total_views_30d", "views_moving_avg_7d", "total_subs_30d",
+                        "views_per_vid_30d", "views_per_sub_30d")
   
   rank_subs_cols <- c("sub_rank", channel_dim_cols)
   rank_lifetime_views_cols <- c("lifetime_view_rank", channel_dim_cols)
@@ -264,6 +267,8 @@ server <- function(input, output, session) {
   rank_views_cols <- c("view_rank", channel_dim_cols)
   rank_view_7d_avg_cols <- c("view_7d_avg_rank", channel_dim_cols)
   rank_daily_sub_cols <- c("daily_sub_rank", channel_dim_cols)
+  rank_view_per_vid_30d_cols <- c("views_per_vid_30d_rank", channel_dim_cols)
+  rank_view_per_sub_cols <- c("views_per_sub_30d_rank", channel_dim_cols)
   
   column_selection <- rank_views_cols
   
@@ -291,7 +296,10 @@ server <- function(input, output, session) {
     
     total_views_30d = colDef(name = "Views (30d)", format = colFormat(separators = TRUE)),
     views_moving_avg_7d = colDef(name = "7 Day Avg Views", format = colFormat(separators = TRUE)),
-    total_subs_30d = colDef(name = "Subscriber Growth (30d)", format = colFormat(separators = TRUE))
+    total_subs_30d = colDef(name = "Subscriber Growth (30d)", format = colFormat(separators = TRUE)),
+  
+    views_per_vid_30d = colDef(name = "Views per Video (30d)", format = colFormat(separators = TRUE)),
+    views_per_sub_30d = colDef(name = "Views per Subscriber (30d)", format = colFormat(separators = TRUE))
   )
   
   rank_subs_colDefs <- c(
@@ -336,6 +344,20 @@ server <- function(input, output, session) {
     )),
     channel_dimensions_colDefs
   )
+  rank_views_per_vid_30d_colDefs <- c(
+    list(views_per_vid_30d_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  rank_views_per_sub_colDefs <- c(
+    list(views_per_sub_30d_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
   
   leaderboard_colDefs <- rank_views_cols
   
@@ -366,6 +388,14 @@ server <- function(input, output, session) {
          "Subscriber Growth (30d)" = {
            column_selection <- rank_daily_sub_cols
            leaderboard_colDefs <- rank_daily_sub_colDefs
+         },
+         "Views per Video (30d)" = {
+           column_selection <- rank_view_per_vid_30d_cols
+           leaderboard_colDefs <- rank_views_per_vid_30d_colDefs
+         },
+         "Views per Subscriber (30d)" = {
+           column_selection <- rank_view_per_sub_cols
+           leaderboard_colDefs <- rank_views_per_sub_colDefs
          }
       )
       
