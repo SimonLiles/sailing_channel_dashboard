@@ -42,6 +42,9 @@ SELECT
     -- Algorithm Performance
     SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.video_count)) AS views_per_vid_30d,
     
+    -- Audience Activation
+    SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.subscriber_count)) AS views_per_sub_30d,
+    
     -- Ranking and percentile for subscriber count
     DENSE_RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_rank,
     ROUND((1- PERCENT_RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC)) * 100) AS sub_percentile,
@@ -70,6 +73,13 @@ SELECT
       ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), SUM(m.daily_new_videos)) 
       DESC)) * 100) AS views_per_vid_30d_percentile,
       
+    -- Ranking and percentile for Audience Activation
+    DENSE_RANK() OVER (
+      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.subscriber_count)) 
+      DESC) AS views_per_sub_30d_rank,
+    ROUND((1 - PERCENT_RANK() OVER (
+      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.subscriber_count)) 
+      DESC)) * 100) AS views_per_sub_30d_percentile,
 
     -- Ranking and perecentile for daily subs
     DENSE_RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC) AS daily_sub_rank,
