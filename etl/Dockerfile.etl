@@ -23,4 +23,4 @@ COPY .here /app/.here
 # Set working directory
 WORKDIR /app
 
-CMD ["Rscript", "main_etl.R"]
+CMD ["Rscript", "main.R"]
