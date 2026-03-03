@@ -40,10 +40,10 @@ SELECT
     ) AS lifetime_views_per_vid,
     
     -- Algorithm Performance
-    SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.video_count)) AS views_per_vid_30d,
+    ROUND(SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.video_count)), 3) AS views_per_vid_30d,
     
     -- Audience Activation
-    SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.subscriber_count)) AS views_per_sub_30d,
+    ROUND(SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.subscriber_count)), 3) AS views_per_sub_30d,
     
     -- Ranking and percentile for subscriber count
     DENSE_RANK() OVER (ORDER BY MAX(m.subscriber_count) DESC) AS sub_rank,
