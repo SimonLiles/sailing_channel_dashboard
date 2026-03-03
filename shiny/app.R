@@ -706,7 +706,7 @@ server <- function(input, output, session) {
   output$growth_metrics_ui <- renderUI({
     req(input$selected_channel_benchmarks)
     
-    tagList(
+    fluidPage(
       # Channel Identifiers
       fluidRow(
         h1(channel_growth_metrics()$channel_title)
@@ -742,10 +742,36 @@ server <- function(input, output, session) {
       card(
         card_header("Algorithmic Performance"),
         # Render the plot
-        plotlyOutput("algorithm_performance_chart"),
+        fluidRow(
+          column(
+            width = 6,
+            card(
+              plotlyOutput("algorithm_performance_chart"),
+              full_screen = TRUE, 
+              fill = TRUE
+            )
+          ),
+          column(
+            width = 6,
+            card(
+              plotlyOutput("algorithm_performance_30d_chart"),
+              full_screen = TRUE, 
+              fill = TRUE
+            )
+          )
+        ),
+        
         # Plot Explanation
-        p("Here I break it down for ya!"),
-        full_screen = TRUE, 
+        p("The above visualizations are plotting the subscriber count against 
+          the average number of views per video. Both axes are then converted to
+          log 10 scales. This is a data visualization trick to spread the points
+          close to the origin further apart, and group together points that are 
+          further from the origin. Without the transformation on the axes, almost
+          all of the ponts would crowd the lower left corner, and the biggest 
+          channel (Sailing La Vagabonde) would be plotted in the upper right hand
+          corner. With the squeezed data, in the lifetime data, a pattern becomes
+          obvious, this is YouTube's algorithmic floor. Given a channel's size, 
+          it should performby at least a certain amount. "),
         fill = TRUE
       )
     )
@@ -753,24 +779,52 @@ server <- function(input, output, session) {
   
   output$algorithm_performance_chart <- renderPlotly(
     ggplotly(
-      tooltip = "text",
+      # tooltip = "text",
       
       ggplot(leaderboard_30d, 
-             aes(x = subscriber_count, y = lifetime_views_per_vid,
-                 text = channel_handle
-                 )
+             aes(x = subscriber_count, y = lifetime_views_per_vid)
              ) + 
-        geom_point(alpha = 0.8, color = "darkblue") + 
-        geom_point(data = channel_growth_metrics(),
-                   aes(x = subscriber_count, y = lifetime_views_per_vid,
-                       text = channel_handle), 
-                   color = "red", size = 5, shape = "star") + 
+        geom_point(alpha = 1, color = "black", aes(text = channel_handle)) + 
+        geom_smooth(method = "lm") +
+        annotate(geom = "point", x = channel_growth_metrics()$subscriber_count, 
+                 y = channel_growth_metrics()$lifetime_views_per_vid,
+                 text = channel_growth_metrics()$channel_handle, color = "red", 
+                 size = 3, shape = "star") +
         scale_x_log10(labels = label_number()) +
         scale_y_log10(labels = label_number()) +
         ggtitle("Channel Performance, Lifetime Views per Video x Subscriber Count, log 10 scales") + 
-        labs(x = "Subscriber Count", y = "Views per Video (Lifetime)") + 
-        theme(legend.position = "left")
+        labs(x = "Subscriber Count", y = "Views per Video (Lifetime)") +
+        theme_minimal() +
+        theme(
+              legend.position = "left",
+              # panel.grid.minor.x = element_line(color = "grey", linetype = "dotted", linewidth = 0.2)
+              )
       )
+  )
+  
+  output$algorithm_performance_30d_chart <- renderPlotly(
+    ggplotly(
+      # tooltip = "text",
+      
+      ggplot(leaderboard_30d, 
+             aes(x = subscriber_count, y = views_per_vid_30d)
+      ) + 
+        geom_point(alpha = 1, color = "black", aes(text = channel_handle)) + 
+        geom_smooth(method = "lm") +
+        annotate(geom = "point", x = channel_growth_metrics()$subscriber_count, 
+                 y = channel_growth_metrics()$views_per_vid_30d,
+                 text = channel_growth_metrics()$channel_handle, color = "red", 
+                 size = 3, shape = "star") +
+        scale_x_log10(labels = label_number()) +
+        scale_y_log10(labels = label_number()) +
+        ggtitle("Channel Performance, 30 Day Views per Video x Subscriber Count, log 10 scales") + 
+        labs(x = "Subscriber Count", y = "Views per Video (30 Days)") +
+        theme_minimal() +
+        theme(
+          legend.position = "left",
+          # panel.grid.minor.x = element_line(color = "grey", linetype = "dotted", linewidth = 0.2)
+        )
+    )
   )
 }
 
