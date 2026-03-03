@@ -23,6 +23,8 @@ library(tidyverse)
 # Plotting
 library(ggplot2)
 library(plotly)
+library(ggthemes)
+library(scales)
 
 library(here)
 
