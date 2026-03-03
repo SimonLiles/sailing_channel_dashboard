@@ -736,6 +736,20 @@ server <- function(input, output, session) {
                    "th perecentile")),
           fill = FALSE
         ),
+        value_box(
+          title = "Views per Video past 30 days",
+          value = channel_growth_metrics()$views_per_vid_30d,
+          p(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
+                   "th perecentile")),
+          fill = FALSE
+        ),
+        value_box(
+          title = "Views per Subscriber past 30 days",
+          value = channel_growth_metrics()$views_per_sub_30d,
+          p(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
+                   "th perecentile")),
+          fill = FALSE
+        ),
       ),
       
       ### Algorithmic Performance Chart ####
