@@ -160,7 +160,8 @@ ui <- page_navbar(
     radioButtons("leaderboard_rank_by",
       label = "Rank By:",
       choices = c("Subscribers", "Lifetime Views", "Video Count", "Views (30d)",
-                  "7 Day Avg Views", "Subscriber Growth (30d)"),
+                  "7 Day Avg Views", "Subscriber Growth (30d)", "Views per Video (30d)", 
+                  "Views per Subscriber (30d)"),
       inline = TRUE,
       selected = "Views (30d)"
     ),
@@ -256,7 +257,9 @@ server <- function(input, output, session) {
   # Render Leader Board Data ####
   ## Column Selection ####
   channel_dim_cols <- c("profile_pic", "channel_title", "channel_handle",
-                        "subscriber_count", "view_count", "video_count", "total_views_30d", "views_moving_avg_7d", "total_subs_30d")
+                        "subscriber_count", "view_count", "video_count", 
+                        "total_views_30d", "views_moving_avg_7d", "total_subs_30d",
+                        "views_per_vid_30d", "views_per_sub_30d")
   
   rank_subs_cols <- c("sub_rank", channel_dim_cols)
   rank_lifetime_views_cols <- c("lifetime_view_rank", channel_dim_cols)
@@ -264,6 +267,8 @@ server <- function(input, output, session) {
   rank_views_cols <- c("view_rank", channel_dim_cols)
   rank_view_7d_avg_cols <- c("view_7d_avg_rank", channel_dim_cols)
   rank_daily_sub_cols <- c("daily_sub_rank", channel_dim_cols)
+  rank_view_per_vid_30d_cols <- c("views_per_vid_30d_rank", channel_dim_cols)
+  rank_view_per_sub_cols <- c("views_per_sub_30d_rank", channel_dim_cols)
   
   column_selection <- rank_views_cols
   
@@ -291,7 +296,10 @@ server <- function(input, output, session) {
     
     total_views_30d = colDef(name = "Views (30d)", format = colFormat(separators = TRUE)),
     views_moving_avg_7d = colDef(name = "7 Day Avg Views", format = colFormat(separators = TRUE)),
-    total_subs_30d = colDef(name = "Subscriber Growth (30d)", format = colFormat(separators = TRUE))
+    total_subs_30d = colDef(name = "Subscriber Growth (30d)", format = colFormat(separators = TRUE)),
+  
+    views_per_vid_30d = colDef(name = "Views per Video (30d)", format = colFormat(separators = TRUE)),
+    views_per_sub_30d = colDef(name = "Views per Subscriber (30d)", format = colFormat(separators = TRUE))
   )
   
   rank_subs_colDefs <- c(
@@ -336,6 +344,20 @@ server <- function(input, output, session) {
     )),
     channel_dimensions_colDefs
   )
+  rank_views_per_vid_30d_colDefs <- c(
+    list(views_per_vid_30d_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
+  rank_views_per_sub_colDefs <- c(
+    list(views_per_sub_30d_rank = colDef(
+      name = "Rank",
+      maxWidth = 100
+    )),
+    channel_dimensions_colDefs
+  )
   
   leaderboard_colDefs <- rank_views_cols
   
@@ -366,6 +388,14 @@ server <- function(input, output, session) {
          "Subscriber Growth (30d)" = {
            column_selection <- rank_daily_sub_cols
            leaderboard_colDefs <- rank_daily_sub_colDefs
+         },
+         "Views per Video (30d)" = {
+           column_selection <- rank_view_per_vid_30d_cols
+           leaderboard_colDefs <- rank_views_per_vid_30d_colDefs
+         },
+         "Views per Subscriber (30d)" = {
+           column_selection <- rank_view_per_sub_cols
+           leaderboard_colDefs <- rank_views_per_sub_colDefs
          }
       )
       
@@ -706,7 +736,7 @@ server <- function(input, output, session) {
   output$growth_metrics_ui <- renderUI({
     req(input$selected_channel_benchmarks)
     
-    tagList(
+    fluidPage(
       # Channel Identifiers
       fluidRow(
         h1(channel_growth_metrics()$channel_title)
@@ -736,41 +766,148 @@ server <- function(input, output, session) {
                    "th perecentile")),
           fill = FALSE
         ),
+        value_box(
+          title = "Views per Video past 30 days",
+          value = channel_growth_metrics()$views_per_vid_30d,
+          p(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
+                   "th perecentile")),
+          fill = FALSE
+        ),
+        value_box(
+          title = "Views per Subscriber past 30 days",
+          value = channel_growth_metrics()$views_per_sub_30d,
+          p(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
+                   "th perecentile")),
+          fill = FALSE
+        ),
       ),
       
-      ### Algorithmic Performance Chart ####
+      ### Algorithmic Performance Charts ####
       card(
         card_header("Algorithmic Performance"),
         # Render the plot
-        plotlyOutput("algorithm_performance_chart"),
+        fluidRow(
+          column(
+            width = 6,
+            card(
+              plotlyOutput("algorithm_performance_chart"),
+              full_screen = TRUE, 
+              fill = TRUE
+            )
+          ),
+          column(
+            width = 6,
+            card(
+              plotlyOutput("algorithm_performance_30d_chart"),
+              full_screen = TRUE, 
+              fill = TRUE
+            )
+          )
+        ),
+        
         # Plot Explanation
-        p("Here I break it down for ya!"),
-        full_screen = TRUE, 
+        p("The above visualizations are plotting the subscriber count against 
+          the average number of views per video. Both axes are then converted to
+          log 10 scales. This is a data visualization trick to spread the points
+          close to the origin further apart, and group together points that are 
+          further from the origin. Without the transformation on the axes, almost
+          all of the ponts would crowd the lower left corner, and the biggest 
+          channel (Sailing La Vagabonde) would be plotted in the upper right hand
+          corner. With the squeezed data, in the lifetime data, a pattern becomes
+          obvious, this is YouTube's algorithmic floor. Given a channel's size, 
+          it should performby at least a certain amount. "),
         fill = TRUE
+      ), 
+      
+      ### Audience Activation Chart ####
+      card(
+        card_header("Audience Activation"),
+        card(
+          plotlyOutput("audience_activation_30d_chart"),
+          full_screen = TRUE, 
+          fill = TRUE
+        ),
+        
+        # Plot Explanation
+        p("Explanation for the above plot as soon as I understand it.")
       )
     )
   })
   
+  ## Make the Growth Metric Plots ####
   output$algorithm_performance_chart <- renderPlotly(
     ggplotly(
       tooltip = "text",
       
       ggplot(leaderboard_30d, 
-             aes(x = subscriber_count, y = lifetime_views_per_vid,
-                 text = channel_handle
-                 )
+             aes(x = subscriber_count, y = lifetime_views_per_vid)
              ) + 
-        geom_point(alpha = 0.8, color = "darkblue") + 
-        geom_point(data = channel_growth_metrics(),
-                   aes(x = subscriber_count, y = lifetime_views_per_vid,
-                       text = channel_handle), 
-                   color = "red", size = 5, shape = "star") + 
+        geom_point(alpha = 1, color = "black", aes(text = channel_handle)) + 
+        geom_smooth(method = "lm") +
+        annotate(geom = "point", x = channel_growth_metrics()$subscriber_count, 
+                 y = channel_growth_metrics()$lifetime_views_per_vid,
+                 text = channel_growth_metrics()$channel_handle, color = "red", 
+                 size = 3, shape = "star") +
         scale_x_log10(labels = label_number()) +
         scale_y_log10(labels = label_number()) +
         ggtitle("Channel Performance, Lifetime Views per Video x Subscriber Count, log 10 scales") + 
-        labs(x = "Subscriber Count", y = "Views per Video (Lifetime)") + 
-        theme(legend.position = "left")
+        labs(x = "Subscriber Count", y = "Views per Video (Lifetime)") +
+        theme_minimal() +
+        theme(
+              legend.position = "left",
+              # panel.grid.minor.x = element_line(color = "grey", linetype = "dotted", linewidth = 0.2)
+              )
       )
+  )
+  
+  output$algorithm_performance_30d_chart <- renderPlotly(
+    ggplotly(
+      tooltip = "text",
+      
+      ggplot(leaderboard_30d, 
+             aes(x = subscriber_count, y = views_per_vid_30d)
+      ) + 
+        geom_point(alpha = 1, color = "black", aes(text = channel_handle)) + 
+        geom_smooth(method = "lm") +
+        annotate(geom = "point", x = channel_growth_metrics()$subscriber_count, 
+                 y = channel_growth_metrics()$views_per_vid_30d,
+                 text = channel_growth_metrics()$channel_handle, color = "red", 
+                 size = 3, shape = "star") +
+        scale_x_log10(labels = label_number()) +
+        scale_y_log10(labels = label_number()) +
+        ggtitle("Channel Performance, 30 Day Views per Video x Subscriber Count, log 10 scales") + 
+        labs(x = "Subscriber Count", y = "Views per Video (30 Days)") +
+        theme_minimal() +
+        theme(
+          legend.position = "left",
+          # panel.grid.minor.x = element_line(color = "grey", linetype = "dotted", linewidth = 0.2)
+        )
+    )
+  )
+  
+  output$audience_activation_30d_chart <- renderPlotly(
+    ggplotly(
+      tooltip = "text",
+      
+      ggplot(leaderboard_30d, 
+             aes(x = subscriber_count, y = views_per_sub_30d)
+      ) + 
+        geom_point(alpha = 1, color = "black", aes(text = channel_handle)) + 
+        geom_smooth(method = "lm") +
+        annotate(geom = "point", x = channel_growth_metrics()$subscriber_count, 
+                 y = channel_growth_metrics()$views_per_sub_30d,
+                 text = channel_growth_metrics()$channel_handle, color = "red", 
+                 size = 3, shape = "star") +
+        scale_x_log10(labels = label_number()) +
+        scale_y_log10(labels = label_number()) +
+        ggtitle("Audience Activation, 30 Day Views per Subscriber x Subscriber Count, log 10 scales") + 
+        labs(x = "Subscriber Count", y = "Views per Subscriber (30 Days)") +
+        theme_minimal() +
+        theme(
+          legend.position = "left",
+          # panel.grid.minor.x = element_line(color = "grey", linetype = "dotted", linewidth = 0.2)
+        )
+    )
   )
 }
 
