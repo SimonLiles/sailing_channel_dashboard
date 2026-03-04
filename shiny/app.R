@@ -56,17 +56,30 @@ connection <- dbPool(
   billing = project, 
   
   minSize = 1,
-  idleTimeout = 3600000
+  idleTimeout = 3600000,
+  
+  onCreate = function(con) {
+    message(paste("New Connection Created!"))
+  }
 )
+
+onStop(function() {
+  message("Pool detected server stop")
+  message("Pool is closed! Everyone out!")
+  poolClose(connection)
+})
 
 message('\tConnected to BigQuery')
 
+message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
 global_summary <- dbGetQuery(connection, 
                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
 
+message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
 leaderboard_30d <- dbGetQuery(connection, 
                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
 
+message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
 channel_lookup <- dbGetQuery(connection,
                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
 
@@ -204,14 +217,53 @@ ui <- page_navbar(
 
 # server code: Define backend and functionality ####
 server <- function(input, output, session) {
+  message("Server restarted")
   observe({
     print(paste("Selected Channel ID:", input$selected_channel_benchmarks))
   })
   
-  check_query <- "SELECT MAX(created_at) as last_update FROM `yt_sailing_data.daily_metrics_history`;"
-  
   # Reactive Poll to update server data ####
+  app_data_poll <- reactivePoll(
+    intervalMillis = 3600000,
+    session = session,
+    checkFunc = function() {
+      message("Checking for fresh data from BigQuery")
+      check_query <- "SELECT MAX(created_at) as last_update FROM `yt_sailing_data.daily_metrics_history`;"
+      result <- dbGetQuery(connection, check_query)
+      return(result$last_update)
+    },
+    valueFunc = function() {
+      message("♻️ Polling BigQuery for fresh data...")
+      
+      message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+      global_summary <- dbGetQuery(connection, 
+                                   read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+      
+      message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+      leaderboard_30d <- dbGetQuery(connection, 
+                                    read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+      
+      message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
+      channel_lookup <- dbGetQuery(connection,
+                                   read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+      
+      return(list(
+        global_summary = global_summary,
+        leaderboard_30d = leaderboard_30d,
+        channel_lookup = channel_lookup
+      ))
+    }
+  )
   
+  observe({
+    app_data <- app_data_poll()
+    
+    global_summary <<- app_data$global_summary
+    leaderboard_30d <<- app_data$leaderboard_30d
+    channel_lookup <<- app_data$channel_lookup
+    
+    message("✅ Global variables refreshed in background.")
+  })
   
   # Render Global Summary Data ####
   output$new_views_24h <- renderText(formatC(global_summary$latest_views[1], format="d", big.mark=","))
@@ -469,6 +521,7 @@ server <- function(input, output, session) {
     # This acts as the bouncer. If nothing is selected, STOP and show nothing.
     req(input$selected_channel) 
     
+    message(paste("Querying:", here("sql", "04_apps", "get_channel_profile.sql")))
     dbGetQuery(connection,
                read_sql(here("sql", "04_apps", "get_channel_profile.sql")),
                params = list(id = input$selected_channel))
@@ -478,6 +531,7 @@ server <- function(input, output, session) {
     # This acts as the bouncer. If nothing is selected, STOP and show nothing.
     req(input$selected_channel) 
     
+    message(paste("Querying:", here("sql", "04_apps", "get_channel_history.sql")))
     dbGetQuery(connection,
                read_sql(here("sql", "04_apps", "get_channel_history.sql")),
                params = list(id = input$selected_channel))
