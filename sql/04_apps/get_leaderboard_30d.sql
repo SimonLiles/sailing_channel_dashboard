@@ -26,9 +26,10 @@ SELECT
     -- Growth Velocity: How efficient is this channel at converting views?
     SAFE_DIVIDE(SUM(m.daily_new_subs), SUM(m.daily_new_views)) * 1000 AS sub_conversion_rate,
     
-    ARRAY_LAST(
-      ARRAY_AGG(m.views_moving_avg_7d ORDER BY m.date)
-    ) AS views_moving_avg_7d,
+    ROUND(
+      ARRAY_LAST(
+        ARRAY_AGG(m.views_moving_avg_7d ORDER BY m.date)
+    ), 2) AS views_moving_avg_7d,
     
     ARRAY_LAST(
       ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
@@ -62,8 +63,14 @@ SELECT
     ROUND((1 - PERCENT_RANK() OVER (ORDER BY SUM(m.daily_new_views) DESC)) * 100) AS view_percentile,
     
     -- Ranking and percentile for 7d average views
-    DENSE_RANK() OVER (ORDER BY SUM(m.views_moving_avg_7d) DESC) AS view_7d_avg_rank,
-    ROUND((1 - PERCENT_RANK() OVER (ORDER BY SUM(m.views_moving_avg_7d) DESC)) * 100) AS view_7d_avg_percentile,
+    DENSE_RANK() OVER (
+      ORDER BY ARRAY_LAST(
+        ARRAY_AGG(m.views_moving_avg_7d ORDER BY m.date)
+      ) DESC) AS view_7d_avg_rank,
+    ROUND((1 - PERCENT_RANK() OVER (ORDER BY 
+      ARRAY_LAST(
+        ARRAY_AGG(m.views_moving_avg_7d ORDER BY m.date)
+      ) DESC)) * 100) AS view_7d_avg_percentile,
     
     -- Ranking and percentile for 30 day views per video
     DENSE_RANK() OVER (

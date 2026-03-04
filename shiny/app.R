@@ -18,6 +18,7 @@ library(shinycssloaders)
 # Data retrieval and handling
 library(bigrquery)
 library(DBI)
+library(pool)
 library(tidyverse)
 
 # Plotting
@@ -41,31 +42,65 @@ project <- "yt-sailing-dashboard"
 dataset <- "yt_sailing_data"
 
 # Make connection
-connection <- dbConnect(
-  bigrquery::bigquery(),
+# connection <- dbConnect(
+#   bigrquery::bigquery(),
+#   project = project,
+#   dataset = dataset,
+#   billing = project
+# )
+
+connection <- dbPool(
+  drv = bigrquery::bigquery(),
   project = project,
   dataset = dataset,
-  billing = project
+  billing = project, 
+  
+  minSize = 1,
+  idleTimeout = 3600000,
+  
+  onCreate = function(con) {
+    message(paste("New Connection Created!"))
+  }
 )
+
+onStop(function() {
+  message("Pool detected server stop")
+  message("Pool is closed! Everyone out!")
+  poolClose(connection)
+})
 
 message('\tConnected to BigQuery')
 
-global_summary <- dbGetQuery(connection, 
-                             read_sql(here("sql", "04_apps", "get_global_summary.sql")))
-
-leaderboard_30d <- dbGetQuery(connection, 
-                              read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-
+# message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+# global_summary <- dbGetQuery(connection, 
+#                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+# 
+# message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+# leaderboard_30d <- dbGetQuery(connection, 
+#                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+# 
+message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
 channel_lookup <- dbGetQuery(connection,
                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
 
-# UI Code: Define frontend, user interface
+global_summary <- data.frame()
+leaderboard_30d <- data.frame()
+# channel_lookup <- data.frame()
+
+# UI Code: Define frontend, user interface ####
 ui <- page_navbar(
+  theme = bs_theme(
+    version = 5,
+    bootswatch = "yeti", # Options: "yeti" (nautical), "flatly", "darkly"
+    primary = "#002B5B"
+  ),
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
   
+  
   title = "Sailing Creator Analytics",
+  fillable = FALSE,
   
   # Niche Pulse Page ####
   nav_panel('Niche Pulse',
@@ -76,6 +111,11 @@ ui <- page_navbar(
         title = "New Views (Last 24h)",
         value = textOutput("new_views_24h"),
         p(textOutput("avg_daily_views")),
+        fill = FALSE,
+      ),
+      value_box(
+        title = "Daily Average New Views (Last 7 Days)",
+        value = textOutput("avg_new_views_7d"),
         fill = FALSE,
       ),
       value_box(
@@ -101,6 +141,7 @@ ui <- page_navbar(
       full_screen = TRUE,
       card_header("Niche Trends"),
       layout_sidebar(
+        fillable = TRUE,
         sidebar = sidebar(
           title = "Plot Controls",
           position = "left",
@@ -110,10 +151,11 @@ ui <- page_navbar(
             inputId = "macro_plot_column_selection",
             label = "Column Selection",
             choices = c("Daily Views", 
-                        "Average Daily Views",
+                        "7 Day Average Views",
+                        # "Average Daily Views",
                         "Daily Views Growth %", 
                         "Daily Sub Growth", 
-                        "Average Daily Sub Growth",
+                        # "Average Daily Sub Growth",
                         "Active Channels")
           ),
           
@@ -128,7 +170,7 @@ ui <- page_navbar(
           
           # End Date Selection
         ),
-        plotOutput("macro_trend_plot"),
+        plotlyOutput("macro_trend_plot"),
       ),
     ),
   ), # End of Niche Pulse Page
@@ -188,18 +230,89 @@ ui <- page_navbar(
     
     # The Data Area (Hidden until a channel is selected)
     uiOutput("growth_metrics_ui"),
-  ), # End of Algorithm Performance page
+  ), # End of Growth Metrics page
+  
+  # Footer ####
+  footer = card(
+    fluidRow(
+      column(
+        width = 4,
+        a("Built by Simon Liles", href = "https://quantknot.com/about-simon-2/"),
+        br(),
+        a("Privacy", href = "https://quantknot.com/privacy-policy/")
+      ),
+      
+      column(
+        width = 4,
+        p("Don't see your channel?"),
+        a("Request to add a channel here", href = "https://quantknot.com")
+      ),
+      
+      column(
+        width = 4,
+        p("Data updated daily via automated GCP pipeline."),
+        a("View source on Github.", 
+          href = "https://github.com/SimonLiles/sailing_channel_dashboard")
+      )
+    )
+  )
 )
 
-# server code: Define backend and functionality
+# server code: Define backend and functionality ####
 server <- function(input, output, session) {
+  message("Server restarted")
   observe({
     print(paste("Selected Channel ID:", input$selected_channel_benchmarks))
+  })
+  
+  # Reactive Poll to update server data ####
+  app_data_poll <- reactivePoll(
+    intervalMillis = 3600000,
+    session = session,
+    checkFunc = function() {
+      message("Checking for fresh data from BigQuery")
+      check_query <- "SELECT MAX(created_at) as last_update FROM `yt_sailing_data.daily_metrics_history`;"
+      result <- dbGetQuery(connection, check_query)
+      return(result$last_update)
+    },
+    valueFunc = function() {
+      message("♻️ Polling BigQuery for fresh data...")
+      
+      message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+      global_summary <- dbGetQuery(connection, 
+                                   read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+      
+      message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+      leaderboard_30d <- dbGetQuery(connection, 
+                                    read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+      
+      message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
+      channel_lookup <- dbGetQuery(connection,
+                                   read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+      
+      return(list(
+        global_summary = global_summary,
+        leaderboard_30d = leaderboard_30d,
+        channel_lookup = channel_lookup
+      ))
+    }
+  )
+  
+  observe({
+    app_data <- app_data_poll()
+    
+    global_summary <<- app_data$global_summary
+    leaderboard_30d <<- app_data$leaderboard_30d
+    channel_lookup <<- app_data$channel_lookup
+    
+    message("✅ Global variables refreshed in background.")
   })
   
   # Render Global Summary Data ####
   output$new_views_24h <- renderText(formatC(global_summary$latest_views[1], format="d", big.mark=","))
 
+  output$avg_new_views_7d <- renderText(formatC(global_summary$views_moving_avg_7d[1], format="d", big.mark=","))
+  
   output$view_growth_pct <- renderText(
     paste0(formatC(global_summary$view_growth_pct[1], format="d", big.mark=","), "%")
   )
@@ -217,7 +330,7 @@ server <- function(input, output, session) {
                                             formatC(global_summary$avg_daily_subs[1], format="d", big.mark=","))) 
   
   ## Render Macro Trend Plot ####
-  output$macro_trend_plot <- renderPlot({
+  output$macro_trend_plot <- renderPlotly({
     # Filter for date selection
     global_summary_filtered <- global_summary %>%
       filter(date >= input$macro_plot_date_range[1] &
@@ -228,30 +341,36 @@ server <- function(input, output, session) {
       "Daily Views" = {
         global_summary_filtered$data <- global_summary_filtered$latest_views
       },
-      "Average Daily Views" = {
-        global_summary_filtered$data <- global_summary_filtered$avg_daily_views
+      "7 Day Average Views" = {
+        global_summary_filtered$data <- global_summary_filtered$views_moving_avg_7d
       },
+      # "Average Daily Views" = {
+      #   global_summary_filtered$data <- global_summary_filtered$avg_daily_views
+      # },
       "Daily Views Growth %" = {
         global_summary_filtered$data <- global_summary_filtered$view_growth_pct
       },
       "Daily Sub Growth" = {
         global_summary_filtered$data <- global_summary_filtered$latest_subs
       },
-      "Average Daily Sub Growth" = {
-        global_summary_filtered$data <- global_summary_filtered$avg_daily_subs
-      },
+      # "Average Daily Sub Growth" = {
+      #   global_summary_filtered$data <- global_summary_filtered$avg_daily_subs
+      # },
       "Active Channels" = {
         global_summary_filtered$data <- global_summary_filtered$active_channels
       },
     )
     
-    ggplot(global_summary_filtered, aes(date, data)) +
-      geom_line() + 
-      geom_point() +
-      labs(
-        x = "Date",
-        y = input$macro_plot_column_selection
-      )
+    ggplotly(
+      ggplot(global_summary_filtered, aes(date, data)) +
+        geom_line() + 
+        geom_point() +
+        labs(
+          x = "Date",
+          y = input$macro_plot_column_selection
+        ) + 
+        theme_minimal()
+    )
   })
   
   # Render Leader Board Data ####
@@ -453,6 +572,7 @@ server <- function(input, output, session) {
     # This acts as the bouncer. If nothing is selected, STOP and show nothing.
     req(input$selected_channel) 
     
+    message(paste("Querying:", here("sql", "04_apps", "get_channel_profile.sql")))
     dbGetQuery(connection,
                read_sql(here("sql", "04_apps", "get_channel_profile.sql")),
                params = list(id = input$selected_channel))
@@ -462,6 +582,7 @@ server <- function(input, output, session) {
     # This acts as the bouncer. If nothing is selected, STOP and show nothing.
     req(input$selected_channel) 
     
+    message(paste("Querying:", here("sql", "04_apps", "get_channel_history.sql")))
     dbGetQuery(connection,
                read_sql(here("sql", "04_apps", "get_channel_history.sql")),
                params = list(id = input$selected_channel))
@@ -716,7 +837,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # Get Growth Benchmarks
+  # Get Growth Benchmarks ####
   # Load the search bar with channels as user searches
   updateSelectizeInput(
     session, 
@@ -748,36 +869,38 @@ server <- function(input, output, session) {
         value_box(
           title = "Views past 30 days",
           value = channel_growth_metrics()$total_views_30d,
-          p(paste0(channel_growth_metrics()$view_percentile,
+          h5(paste0(channel_growth_metrics()$view_percentile,
                    "th perecentile")),
           fill = FALSE
         ),
         value_box(
           title = "7 Day Average Views",
           value = channel_growth_metrics()$views_moving_avg_7d,
-          p(paste0(channel_growth_metrics()$view_7d_avg_percentile,
+          h5(paste0(channel_growth_metrics()$view_7d_avg_percentile,
                    "th perecentile")),
           fill = FALSE
         ),
         value_box(
           title = "New Subscribers past 30 days",
           value = channel_growth_metrics()$daily_new_subs,
-          p(paste0(channel_growth_metrics()$daily_sub_percentile,
+          h5(paste0(channel_growth_metrics()$daily_sub_percentile,
                    "th perecentile")),
           fill = FALSE
         ),
         value_box(
-          title = "Views per Video past 30 days",
+          title = "Catalog Yield",
           value = channel_growth_metrics()$views_per_vid_30d,
-          p(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
+          h5(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
                    "th perecentile")),
+          p("Views per Video past 30 days"),
           fill = FALSE
         ),
         value_box(
-          title = "Views per Subscriber past 30 days",
+          title = "Audience Activation",
           value = channel_growth_metrics()$views_per_sub_30d,
-          p(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
+          h5(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
                    "th perecentile")),
+          p("Views per Subscriber past 30 days"),
           fill = FALSE
         ),
       ),
@@ -812,10 +935,11 @@ server <- function(input, output, session) {
           close to the origin further apart, and group together points that are 
           further from the origin. Without the transformation on the axes, almost
           all of the ponts would crowd the lower left corner, and the biggest 
-          channel (Sailing La Vagabonde) would be plotted in the upper right hand
-          corner. With the squeezed data, in the lifetime data, a pattern becomes
-          obvious, this is YouTube's algorithmic floor. Given a channel's size, 
-          it should performby at least a certain amount. "),
+          channel (in this case: Sailing La Vagabonde) would be plotted in the 
+          upper right hand corner. With the squeezed data, in the lifetime data,
+          a pattern becomes obvious, this is YouTube's algorithmic floor. Using 
+          a model, the performance of a channel can be predicted given a subscriber 
+          count. This prediction model is plotted over the data as the blue line."),
         fill = TRUE
       ), 
       
@@ -829,7 +953,12 @@ server <- function(input, output, session) {
         ),
         
         # Plot Explanation
-        p("Explanation for the above plot as soon as I understand it.")
+        p("Plotted above is the audience activation against the subscriber count
+          of active channels. Both axes have log 10 scales to group the data into
+          a more easily read format. In general, healthy channels have an audience
+          activation of 0.5 to 1 which indicates a healthy base of returning viewers.
+          Values greater than 1 can also indicate growth if there is also a 
+          corresponding and current growth in subscribers.")
       )
     )
   })
