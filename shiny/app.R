@@ -71,17 +71,21 @@ onStop(function() {
 
 message('\tConnected to BigQuery')
 
-message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-global_summary <- dbGetQuery(connection, 
-                             read_sql(here("sql", "04_apps", "get_global_summary.sql")))
-
-message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-leaderboard_30d <- dbGetQuery(connection, 
-                              read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-
+# message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+# global_summary <- dbGetQuery(connection, 
+#                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+# 
+# message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+# leaderboard_30d <- dbGetQuery(connection, 
+#                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+# 
 message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
 channel_lookup <- dbGetQuery(connection,
                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+
+global_summary <- data.frame()
+leaderboard_30d <- data.frame()
+# channel_lookup <- data.frame()
 
 # UI Code: Define frontend, user interface ####
 ui <- page_navbar(
@@ -90,6 +94,7 @@ ui <- page_navbar(
   ),
   
   title = "Sailing Creator Analytics",
+  fillable = FALSE,
   
   # Niche Pulse Page ####
   nav_panel('Niche Pulse',
@@ -125,6 +130,7 @@ ui <- page_navbar(
       full_screen = TRUE,
       card_header("Niche Trends"),
       layout_sidebar(
+        fillable = TRUE,
         sidebar = sidebar(
           title = "Plot Controls",
           position = "left",
@@ -215,19 +221,24 @@ ui <- page_navbar(
   ), # End of Growth Metrics page
   
   # Footer ####
-  # footer = tagList(
-  #   column(
-  #     width = 4,
-  #     a("Built by Simon Liles", href = "https://quantknot.com"),
-  #     a("Privacy", href = "https://quantknot.com/privacy-policy/")
-  #   ),
-  #   
-  #   column(
-  #     width = 4,
-  #     p("Don't see your channel?"),
-  #     a("Request to add a channel here", href = "https://quantknot.com")
-  #   )
-  # )
+  footer = card(
+    fluidRow(
+      column(
+        width = 4,
+        a("Built by Simon Liles", href = "https://quantknot.com/about-simon-2/"),
+        br(),
+        a("Privacy", href = "https://quantknot.com/privacy-policy/"),
+        br(),
+        a("GitHub", href = "https://github.com/SimonLiles/sailing_channel_dashboard")
+      ),
+      
+      column(
+        width = 4,
+        p("Don't see your channel?"),
+        a("Request to add a channel here", href = "https://quantknot.com")
+      )
+    )
+  )
 )
 
 # server code: Define backend and functionality ####
