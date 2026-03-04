@@ -152,7 +152,7 @@ ui <- page_navbar(
           
           # End Date Selection
         ),
-        plotOutput("macro_trend_plot"),
+        plotlyOutput("macro_trend_plot"),
       ),
     ),
   ), # End of Niche Pulse Page
@@ -285,7 +285,7 @@ server <- function(input, output, session) {
                                             formatC(global_summary$avg_daily_subs[1], format="d", big.mark=","))) 
   
   ## Render Macro Trend Plot ####
-  output$macro_trend_plot <- renderPlot({
+  output$macro_trend_plot <- renderPlotly({
     # Filter for date selection
     global_summary_filtered <- global_summary %>%
       filter(date >= input$macro_plot_date_range[1] &
@@ -313,13 +313,15 @@ server <- function(input, output, session) {
       },
     )
     
-    ggplot(global_summary_filtered, aes(date, data)) +
-      geom_line() + 
-      geom_point() +
-      labs(
-        x = "Date",
-        y = input$macro_plot_column_selection
-      )
+    ggplotly(
+      ggplot(global_summary_filtered, aes(date, data)) +
+        geom_line() + 
+        geom_point() +
+        labs(
+          x = "Date",
+          y = input$macro_plot_column_selection
+        )
+    )
   })
   
   # Render Leader Board Data ####
@@ -786,7 +788,7 @@ server <- function(input, output, session) {
     )
   })
   
-  # Get Growth Benchmarks
+  # Get Growth Benchmarks ####
   # Load the search bar with channels as user searches
   updateSelectizeInput(
     session, 
