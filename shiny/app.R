@@ -212,7 +212,22 @@ ui <- page_navbar(
     
     # The Data Area (Hidden until a channel is selected)
     uiOutput("growth_metrics_ui"),
-  ), # End of Algorithm Performance page
+  ), # End of Growth Metrics page
+  
+  # Footer ####
+  # footer = tagList(
+  #   column(
+  #     width = 4,
+  #     a("Built by Simon Liles", href = "https://quantknot.com"),
+  #     a("Privacy", href = "https://quantknot.com/privacy-policy/")
+  #   ),
+  #   
+  #   column(
+  #     width = 4,
+  #     p("Don't see your channel?"),
+  #     a("Request to add a channel here", href = "https://quantknot.com")
+  #   )
+  # )
 )
 
 # server code: Define backend and functionality ####
