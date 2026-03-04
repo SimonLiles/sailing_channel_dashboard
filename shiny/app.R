@@ -884,10 +884,11 @@ server <- function(input, output, session) {
           close to the origin further apart, and group together points that are 
           further from the origin. Without the transformation on the axes, almost
           all of the ponts would crowd the lower left corner, and the biggest 
-          channel (Sailing La Vagabonde) would be plotted in the upper right hand
-          corner. With the squeezed data, in the lifetime data, a pattern becomes
-          obvious, this is YouTube's algorithmic floor. Given a channel's size, 
-          it should performby at least a certain amount. "),
+          channel (in this case: Sailing La Vagabonde) would be plotted in the 
+          upper right hand corner. With the squeezed data, in the lifetime data,
+          a pattern becomes obvious, this is YouTube's algorithmic floor. Using 
+          a model, the performance of a channel can be predicted given a subscriber 
+          count. This prediction model is plotted over the data as the blue line."),
         fill = TRUE
       ), 
       
@@ -901,7 +902,12 @@ server <- function(input, output, session) {
         ),
         
         # Plot Explanation
-        p("Explanation for the above plot as soon as I understand it.")
+        p("Plotted above is the audience activation against the subscriber count
+          of active channels. Both axes have log 10 scales to group the data into
+          a more easily read format. In general, healthy channels have an audience
+          activation of 0.5 to 1 which indicates a healthy base of returning viewers.
+          Values greater than 1 can also indicate growth if there is also a 
+          corresponding and current growth in subscribers.")
       )
     )
   })
