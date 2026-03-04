@@ -89,9 +89,15 @@ leaderboard_30d <- data.frame()
 
 # UI Code: Define frontend, user interface ####
 ui <- page_navbar(
+  theme = bs_theme(
+    version = 5,
+    bootswatch = "yeti", # Options: "yeti" (nautical), "flatly", "darkly"
+    primary = "#002B5B"
+  ),
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
+  
   
   title = "Sailing Creator Analytics",
   fillable = FALSE,
@@ -227,15 +233,20 @@ ui <- page_navbar(
         width = 4,
         a("Built by Simon Liles", href = "https://quantknot.com/about-simon-2/"),
         br(),
-        a("Privacy", href = "https://quantknot.com/privacy-policy/"),
-        br(),
-        a("GitHub", href = "https://github.com/SimonLiles/sailing_channel_dashboard")
+        a("Privacy", href = "https://quantknot.com/privacy-policy/")
       ),
       
       column(
         width = 4,
         p("Don't see your channel?"),
         a("Request to add a channel here", href = "https://quantknot.com")
+      ),
+      
+      column(
+        width = 4,
+        p("Data updated daily via automated GCP pipeline."),
+        a("View source on Github.", 
+          href = "https://github.com/SimonLiles/sailing_channel_dashboard")
       )
     )
   )
@@ -346,7 +357,8 @@ server <- function(input, output, session) {
         labs(
           x = "Date",
           y = input$macro_plot_column_selection
-        )
+        ) + 
+        theme_minimal()
     )
   })
   
