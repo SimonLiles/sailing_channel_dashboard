@@ -146,10 +146,10 @@ ui <- page_navbar(
             inputId = "macro_plot_column_selection",
             label = "Column Selection",
             choices = c("Daily Views", 
-                        "Average Daily Views",
+                        # "Average Daily Views",
                         "Daily Views Growth %", 
                         "Daily Sub Growth", 
-                        "Average Daily Sub Growth",
+                        # "Average Daily Sub Growth",
                         "Active Channels")
           ),
           
@@ -333,18 +333,18 @@ server <- function(input, output, session) {
       "Daily Views" = {
         global_summary_filtered$data <- global_summary_filtered$latest_views
       },
-      "Average Daily Views" = {
-        global_summary_filtered$data <- global_summary_filtered$avg_daily_views
-      },
+      # "Average Daily Views" = {
+      #   global_summary_filtered$data <- global_summary_filtered$avg_daily_views
+      # },
       "Daily Views Growth %" = {
         global_summary_filtered$data <- global_summary_filtered$view_growth_pct
       },
       "Daily Sub Growth" = {
         global_summary_filtered$data <- global_summary_filtered$latest_subs
       },
-      "Average Daily Sub Growth" = {
-        global_summary_filtered$data <- global_summary_filtered$avg_daily_subs
-      },
+      # "Average Daily Sub Growth" = {
+      #   global_summary_filtered$data <- global_summary_filtered$avg_daily_subs
+      # },
       "Active Channels" = {
         global_summary_filtered$data <- global_summary_filtered$active_channels
       },
