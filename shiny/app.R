@@ -114,6 +114,11 @@ ui <- page_navbar(
         fill = FALSE,
       ),
       value_box(
+        title = "Daily Average New Views (Last 7 Days)",
+        value = textOutput("avg_new_views_7d"),
+        fill = FALSE,
+      ),
+      value_box(
         title = "New Views Growth (Last 24h)",
         value = textOutput("view_growth_pct"),
         fill = FALSE,
@@ -146,6 +151,7 @@ ui <- page_navbar(
             inputId = "macro_plot_column_selection",
             label = "Column Selection",
             choices = c("Daily Views", 
+                        "7 Day Average Views",
                         # "Average Daily Views",
                         "Daily Views Growth %", 
                         "Daily Sub Growth", 
@@ -305,6 +311,8 @@ server <- function(input, output, session) {
   # Render Global Summary Data ####
   output$new_views_24h <- renderText(formatC(global_summary$latest_views[1], format="d", big.mark=","))
 
+  output$avg_new_views_7d <- renderText(formatC(global_summary$views_moving_avg_7d[1], format="d", big.mark=","))
+  
   output$view_growth_pct <- renderText(
     paste0(formatC(global_summary$view_growth_pct[1], format="d", big.mark=","), "%")
   )
@@ -332,6 +340,9 @@ server <- function(input, output, session) {
     switch (input$macro_plot_column_selection,
       "Daily Views" = {
         global_summary_filtered$data <- global_summary_filtered$latest_views
+      },
+      "7 Day Average Views" = {
+        global_summary_filtered$data <- global_summary_filtered$views_moving_avg_7d
       },
       # "Average Daily Views" = {
       #   global_summary_filtered$data <- global_summary_filtered$avg_daily_views
