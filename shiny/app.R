@@ -820,36 +820,38 @@ server <- function(input, output, session) {
         value_box(
           title = "Views past 30 days",
           value = channel_growth_metrics()$total_views_30d,
-          p(paste0(channel_growth_metrics()$view_percentile,
+          h5(paste0(channel_growth_metrics()$view_percentile,
                    "th perecentile")),
           fill = FALSE
         ),
         value_box(
           title = "7 Day Average Views",
           value = channel_growth_metrics()$views_moving_avg_7d,
-          p(paste0(channel_growth_metrics()$view_7d_avg_percentile,
+          h5(paste0(channel_growth_metrics()$view_7d_avg_percentile,
                    "th perecentile")),
           fill = FALSE
         ),
         value_box(
           title = "New Subscribers past 30 days",
           value = channel_growth_metrics()$daily_new_subs,
-          p(paste0(channel_growth_metrics()$daily_sub_percentile,
+          h5(paste0(channel_growth_metrics()$daily_sub_percentile,
                    "th perecentile")),
           fill = FALSE
         ),
         value_box(
-          title = "Views per Video past 30 days",
+          title = "Catalog Yield",
           value = channel_growth_metrics()$views_per_vid_30d,
-          p(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
+          h5(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
                    "th perecentile")),
+          p("Views per Video past 30 days"),
           fill = FALSE
         ),
         value_box(
-          title = "Views per Subscriber past 30 days",
+          title = "Audience Activation",
           value = channel_growth_metrics()$views_per_sub_30d,
-          p(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
+          h5(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
                    "th perecentile")),
+          p("Views per Subscriber past 30 days"),
           fill = FALSE
         ),
       ),
