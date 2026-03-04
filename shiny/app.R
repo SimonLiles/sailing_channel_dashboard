@@ -18,6 +18,7 @@ library(shinycssloaders)
 # Data retrieval and handling
 library(bigrquery)
 library(DBI)
+library(pool)
 library(tidyverse)
 
 # Plotting
@@ -41,11 +42,21 @@ project <- "yt-sailing-dashboard"
 dataset <- "yt_sailing_data"
 
 # Make connection
-connection <- dbConnect(
-  bigrquery::bigquery(),
+# connection <- dbConnect(
+#   bigrquery::bigquery(),
+#   project = project,
+#   dataset = dataset,
+#   billing = project
+# )
+
+connection <- dbPool(
+  drv = bigrquery::bigquery(),
   project = project,
   dataset = dataset,
-  billing = project
+  billing = project, 
+  
+  minSize = 1,
+  idleTimeout = 3600000
 )
 
 message('\tConnected to BigQuery')
@@ -59,7 +70,7 @@ leaderboard_30d <- dbGetQuery(connection,
 channel_lookup <- dbGetQuery(connection,
                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
 
-# UI Code: Define frontend, user interface
+# UI Code: Define frontend, user interface ####
 ui <- page_navbar(
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
@@ -191,11 +202,16 @@ ui <- page_navbar(
   ), # End of Algorithm Performance page
 )
 
-# server code: Define backend and functionality
+# server code: Define backend and functionality ####
 server <- function(input, output, session) {
   observe({
     print(paste("Selected Channel ID:", input$selected_channel_benchmarks))
   })
+  
+  check_query <- "SELECT MAX(created_at) as last_update FROM `yt_sailing_data.daily_metrics_history`;"
+  
+  # Reactive Poll to update server data ####
+  
   
   # Render Global Summary Data ####
   output$new_views_24h <- renderText(formatC(global_summary$latest_views[1], format="d", big.mark=","))
