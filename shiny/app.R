@@ -71,14 +71,14 @@ onStop(function() {
 
 message('\tConnected to BigQuery')
 
-# message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-# global_summary <- dbGetQuery(connection, 
-#                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
-# 
-# message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-# leaderboard_30d <- dbGetQuery(connection, 
-#                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-# 
+message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+global_summary <- dbGetQuery(connection,
+                             read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+
+message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+leaderboard_30d <- dbGetQuery(connection,
+                              read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+
 message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
 channel_lookup <- dbGetQuery(connection,
                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
