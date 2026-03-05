@@ -277,23 +277,26 @@ server <- function(input, output, session) {
     },
     valueFunc = function() {
       message("♻️ Polling BigQuery for fresh data...")
+      t <- system.time({
+        message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+        global_summary_pull <- dbGetQuery(connection, 
+                                     read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+        
+        message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+        leaderboard_30d_pull <- dbGetQuery(connection, 
+                                      read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+        
+        message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
+        channel_lookup_pull <- dbGetQuery(connection,
+                                     read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+      })
       
-      message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-      global_summary <- dbGetQuery(connection, 
-                                   read_sql(here("sql", "04_apps", "get_global_summary.sql")))
-      
-      message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-      leaderboard_30d <- dbGetQuery(connection, 
-                                    read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-      
-      message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
-      channel_lookup <- dbGetQuery(connection,
-                                   read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+      message(paste("Data pull took", t['elapsed'], "seconds"))
       
       return(list(
-        global_summary = global_summary,
-        leaderboard_30d = leaderboard_30d,
-        channel_lookup = channel_lookup
+        global_summary_pull = global_summary_pull,
+        leaderboard_30d_pull = leaderboard_30d_pull,
+        channel_lookup_pull = channel_lookup_pull
       ))
     }
   )
@@ -301,9 +304,9 @@ server <- function(input, output, session) {
   observe({
     app_data <- app_data_poll()
     
-    global_summary <<- app_data$global_summary
-    leaderboard_30d <<- app_data$leaderboard_30d
-    channel_lookup <<- app_data$channel_lookup
+    global_summary <<- app_data$global_summary_pull
+    leaderboard_30d <<- app_data$leaderboard_30d_pull
+    channel_lookup <<- app_data$channel_lookup_pull
     
     message("✅ Global variables refreshed in background.")
   })
@@ -317,7 +320,7 @@ server <- function(input, output, session) {
     paste0(formatC(global_summary$view_growth_pct[1], format="d", big.mark=","), "%")
   )
   
-  new_views_24h_color <- ifelse(global_summary$view_growth_pct[1] >= 0, "green", "red")
+  # new_views_24h_color <- ifelse(global_summary$view_growth_pct[1] >= 0, "green", "red")
 
   output$new_subs_24h <- renderText(formatC(global_summary$latest_subs[1], format="d", big.mark=",")) 
   
