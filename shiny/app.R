@@ -17,6 +17,7 @@ library(shinycssloaders)
 
 # Data retrieval and handling
 library(bigrquery)
+library(bigrquerystorage)
 library(DBI)
 library(pool)
 library(tidyverse)
@@ -292,7 +293,7 @@ server <- function(input, output, session) {
         message("Downloading leaderboard_30d table")
         leaderboard_30d_pull <- bq_table_download(bq_table(project, dataset, "leaderboard_30d"))
         message("Downloading channel_loookup table")
-        channel_loookup_pull <- bq_table_download(bq_table(project, dataset, "channel_loookup"))
+        channel_lookup_pull <- bq_table_download(bq_table(project, dataset, "channel_loookup"))
         
         # message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
         # global_summary_pull <- dbGetQuery(connection, 
@@ -610,7 +611,7 @@ server <- function(input, output, session) {
   # Create the layout for the channel explorer page ####
   output$channel_dashboard_ui <- renderUI({
     req(input$selected_channel)
-    
+
     ### Time Series Plots ####
     output$subscriber_count_ts_plot <- renderPlotly({
       plot_ly(channel_history()) %>%
@@ -628,7 +629,7 @@ server <- function(input, output, session) {
           paper_bgcolor = "transparent",
           plot_bgcolor = "transparent"
         ) %>%
-        config(displayModeBar = F) %>%
+        plotly::config(displayModeBar = F) %>%
         htmlwidgets::onRender(
           "function(el) {
               el.closest('.bslib-value-box')
@@ -655,7 +656,7 @@ server <- function(input, output, session) {
           paper_bgcolor = "transparent",
           plot_bgcolor = "transparent"
         ) %>%
-        config(displayModeBar = F) %>%
+        plotly::config(displayModeBar = F) %>%
         htmlwidgets::onRender(
           "function(el) {
               el.closest('.bslib-value-box')
@@ -682,7 +683,7 @@ server <- function(input, output, session) {
           paper_bgcolor = "transparent",
           plot_bgcolor = "transparent"
         ) %>%
-        config(displayModeBar = F) %>%
+        plotly::config(displayModeBar = F) %>%
         htmlwidgets::onRender(
           "function(el) {
               el.closest('.bslib-value-box')
@@ -709,7 +710,7 @@ server <- function(input, output, session) {
           paper_bgcolor = "transparent",
           plot_bgcolor = "transparent"
         ) %>%
-        config(displayModeBar = F) %>%
+        plotly::config(displayModeBar = F) %>%
         htmlwidgets::onRender(
           "function(el) {
               el.closest('.bslib-value-box')
