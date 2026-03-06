@@ -4,9 +4,11 @@
    Logic: 
     - Filters the Mart for the last 30 days.
     - Joins with Dimensions to get 'channel_title'.
-    - Calculates growth velocity (subs per 1k views).
+    - Calculates growth metrics.
+    - Ranks and calcualtes percentiles for each metric.
 ==================================================================== */
 
+CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.leaderboard_30d` AS
 SELECT
     -- channel dimensions
     d.channel_id,

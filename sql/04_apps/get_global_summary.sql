@@ -6,7 +6,7 @@
     - Aggregates views and subs across ALL channels.
     - Calculates a Day-over-Day (DoD) percentage change.
 ==================================================================== */
-
+CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.global_summary` AS
 WITH daily_aggregates AS (
   SELECT 
     date,
