@@ -86,7 +86,10 @@ if (row_check == 0) {
 sql_ops_sequence <- c(
   here("sql", "01_raw", "ops", "merge_channel_dims.sql"),
   here("sql", "01_raw", "ops", "append_daily_metrics.sql"),
-  here("sql", "03_marts", "fct_daily_performance.sql")
+  here("sql", "03_marts", "fct_daily_performance.sql"),
+  here("sql", "04_apps", "get_leaderboard_30d.sql"),
+  here("sql", "04_apps", "get_global_summary.sql"),
+  here("sql", "04_apps", "get_channel_lookup.sql")
 )
 
 # Execute in order

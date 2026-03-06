@@ -1,8 +1,8 @@
 ## ⛵ Sailing Channels: Data Pipeline & Analytics Dashboard
 
-Live Dashboard: sailing-creators.quantknot.com
+Live Dashboard: <https://sailing-creators.quantknot.com>
 
-An automated end-to-end ELT pipeline and interactive dashboard monitoring 1,064 curated YouTube channels within the sailing niche. This project identifies growth benchmarks and algorithmic trends using daily performance metrics.
+An automated end-to-end ETL pipeline and interactive dashboard monitoring 1,064 curated YouTube channels within the sailing niche. This project identifies growth benchmarks and algorithmic trends using daily performance metrics.
 
 ## 🚀 The Mission
 
@@ -132,12 +132,12 @@ erDiagram
 ## 🛠 Tech Stack
 
 | Layer | Technology | Purpose |
-|-------------------|-------------------------------|-----------------------|
+|-------------------|------------------------------|-----------------------|
 | Language | R (tidyverse, Shiny) | ETL Orchestration & UI Development |
 | Database | Google BigQuery | Scalable data warehousing & SQL transformations |
 | Compute | Google Cloud Run | Serverless execution of ETL and Shiny App |
 | CI/CD | GitHub Actions | Automated testing and container deployment |
-| Container | Docker | Environment parity across local and productio |
+| Container | Docker | Environment parity across local and production |
 
 ## 📈 Key Insight: The Algorithmic Floor
 

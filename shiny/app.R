@@ -72,16 +72,23 @@ onStop(function() {
 message('\tConnected to BigQuery')
 
 # message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-# global_summary <- dbGetQuery(connection, 
+# global_summary <- dbGetQuery(connection,
 #                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
 # 
 # message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-# leaderboard_30d <- dbGetQuery(connection, 
+# leaderboard_30d <- dbGetQuery(connection,
 #                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
 # 
-message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
-channel_lookup <- dbGetQuery(connection,
-                             read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+# message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
+# channel_lookup <- dbGetQuery(connection,
+#                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+
+message("Downloading global_summary table")
+global_summary <- bq_table_download(bq_table(project, "global_summary"))
+message("Downloading leaderboard_30d table")
+leaderboard_30d <- bq_table_download(bq_table(project, "leaderboard_30d"))
+message("Downloading channel_loookup table")
+channel_loookup <- bq_table_download(bq_table(project, "channel_loookup"))
 
 global_summary <- data.frame()
 leaderboard_30d <- data.frame()
@@ -245,14 +252,16 @@ ui <- page_navbar(
       column(
         width = 4,
         p("Don't see your channel?"),
-        a("Request to add a channel here", href = "https://quantknot.com")
+        a("Request to add a channel here", href = "https://quantknot.com/sailing-creator-dashboard-new-channel-request/")
       ),
       
       column(
         width = 4,
         p("Data updated daily via automated GCP pipeline."),
         a("View source on Github.", 
-          href = "https://github.com/SimonLiles/sailing_channel_dashboard")
+          href = "https://github.com/SimonLiles/sailing_channel_dashboard"),
+        p("Data provided by YouTube. Analysis & Metrics © 2026 Simon Liles."),
+        a("Methodology & Terms", href = "https://quantknot.com/sailing-creator-analytics-methodology-attribution/")
       )
     )
   )
@@ -277,23 +286,33 @@ server <- function(input, output, session) {
     },
     valueFunc = function() {
       message("♻️ Polling BigQuery for fresh data...")
+      t <- system.time({
+        message("Downloading global_summary table")
+        global_summary_pull <- bq_table_download(bq_table(project, "global_summary"))
+        message("Downloading leaderboard_30d table")
+        leaderboard_30d_pull <- bq_table_download(bq_table(project, "leaderboard_30d"))
+        message("Downloading channel_loookup table")
+        channel_loookup_pull <- bq_table_download(bq_table(project, "channel_loookup"))
+        
+        # message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+        # global_summary_pull <- dbGetQuery(connection, 
+        #                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+        # 
+        # message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+        # leaderboard_30d_pull <- dbGetQuery(connection, 
+        #                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+        # 
+        # message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
+        # channel_lookup_pull <- dbGetQuery(connection,
+        #                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+      })
       
-      message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-      global_summary <- dbGetQuery(connection, 
-                                   read_sql(here("sql", "04_apps", "get_global_summary.sql")))
-      
-      message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-      leaderboard_30d <- dbGetQuery(connection, 
-                                    read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-      
-      message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
-      channel_lookup <- dbGetQuery(connection,
-                                   read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+      message(paste("Data pull took", t['elapsed'], "seconds"))
       
       return(list(
-        global_summary = global_summary,
-        leaderboard_30d = leaderboard_30d,
-        channel_lookup = channel_lookup
+        global_summary_pull = global_summary_pull,
+        leaderboard_30d_pull = leaderboard_30d_pull,
+        channel_lookup_pull = channel_lookup_pull
       ))
     }
   )
@@ -301,9 +320,9 @@ server <- function(input, output, session) {
   observe({
     app_data <- app_data_poll()
     
-    global_summary <<- app_data$global_summary
-    leaderboard_30d <<- app_data$leaderboard_30d
-    channel_lookup <<- app_data$channel_lookup
+    global_summary <<- app_data$global_summary_pull
+    leaderboard_30d <<- app_data$leaderboard_30d_pull
+    channel_lookup <<- app_data$channel_lookup_pull
     
     message("✅ Global variables refreshed in background.")
   })
@@ -317,7 +336,7 @@ server <- function(input, output, session) {
     paste0(formatC(global_summary$view_growth_pct[1], format="d", big.mark=","), "%")
   )
   
-  new_views_24h_color <- ifelse(global_summary$view_growth_pct[1] >= 0, "green", "red")
+  # new_views_24h_color <- ifelse(global_summary$view_growth_pct[1] >= 0, "green", "red")
 
   output$new_subs_24h <- renderText(formatC(global_summary$latest_subs[1], format="d", big.mark=",")) 
   
