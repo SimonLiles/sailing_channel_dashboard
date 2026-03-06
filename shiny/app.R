@@ -84,11 +84,11 @@ message('\tConnected to BigQuery')
 #                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
 
 message("Downloading global_summary table")
-global_summary <- bq_table_download(bq_table(project, "global_summary"))
+global_summary <- bq_table_download(bq_table(project, dataset, "global_summary"))
 message("Downloading leaderboard_30d table")
-leaderboard_30d <- bq_table_download(bq_table(project, "leaderboard_30d"))
+leaderboard_30d <- bq_table_download(bq_table(project, dataset, "leaderboard_30d"))
 message("Downloading channel_loookup table")
-channel_loookup <- bq_table_download(bq_table(project, "channel_loookup"))
+channel_loookup <- bq_table_download(bq_table(project, dataset, "channel_loookup"))
 
 global_summary <- data.frame()
 leaderboard_30d <- data.frame()
@@ -288,11 +288,11 @@ server <- function(input, output, session) {
       message("♻️ Polling BigQuery for fresh data...")
       t <- system.time({
         message("Downloading global_summary table")
-        global_summary_pull <- bq_table_download(bq_table(project, "global_summary"))
+        global_summary_pull <- bq_table_download(bq_table(project, dataset, "global_summary"))
         message("Downloading leaderboard_30d table")
-        leaderboard_30d_pull <- bq_table_download(bq_table(project, "leaderboard_30d"))
+        leaderboard_30d_pull <- bq_table_download(bq_table(project, dataset, "leaderboard_30d"))
         message("Downloading channel_loookup table")
-        channel_loookup_pull <- bq_table_download(bq_table(project, "channel_loookup"))
+        channel_loookup_pull <- bq_table_download(bq_table(project, dataset, "channel_loookup"))
         
         # message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
         # global_summary_pull <- dbGetQuery(connection, 
