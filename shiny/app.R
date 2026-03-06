@@ -71,17 +71,24 @@ onStop(function() {
 
 message('\tConnected to BigQuery')
 
-message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-global_summary <- dbGetQuery(connection,
-                             read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+# message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+# global_summary <- dbGetQuery(connection,
+#                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+# 
+# message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+# leaderboard_30d <- dbGetQuery(connection,
+#                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+# 
+# message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
+# channel_lookup <- dbGetQuery(connection,
+#                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
 
-message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-leaderboard_30d <- dbGetQuery(connection,
-                              read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-
-message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
-channel_lookup <- dbGetQuery(connection,
-                             read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+message("Downloading global_summary table")
+global_summary <- bq_table_download(bq_table(project, "global_summary"))
+message("Downloading leaderboard_30d table")
+leaderboard_30d <- bq_table_download(bq_table(project, "leaderboard_30d"))
+message("Downloading channel_loookup table")
+channel_loookup <- bq_table_download(bq_table(project, "channel_loookup"))
 
 global_summary <- data.frame()
 leaderboard_30d <- data.frame()
@@ -280,17 +287,24 @@ server <- function(input, output, session) {
     valueFunc = function() {
       message("♻️ Polling BigQuery for fresh data...")
       t <- system.time({
-        message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-        global_summary_pull <- dbGetQuery(connection, 
-                                     read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+        message("Downloading global_summary table")
+        global_summary_pull <- bq_table_download(bq_table(project, "global_summary"))
+        message("Downloading leaderboard_30d table")
+        leaderboard_30d_pull <- bq_table_download(bq_table(project, "leaderboard_30d"))
+        message("Downloading channel_loookup table")
+        channel_loookup_pull <- bq_table_download(bq_table(project, "channel_loookup"))
         
-        message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-        leaderboard_30d_pull <- dbGetQuery(connection, 
-                                      read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-        
-        message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
-        channel_lookup_pull <- dbGetQuery(connection,
-                                     read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+        # message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
+        # global_summary_pull <- dbGetQuery(connection, 
+        #                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
+        # 
+        # message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
+        # leaderboard_30d_pull <- dbGetQuery(connection, 
+        #                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
+        # 
+        # message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
+        # channel_lookup_pull <- dbGetQuery(connection,
+        #                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
       })
       
       message(paste("Data pull took", t['elapsed'], "seconds"))
