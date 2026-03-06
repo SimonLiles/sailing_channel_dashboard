@@ -245,14 +245,16 @@ ui <- page_navbar(
       column(
         width = 4,
         p("Don't see your channel?"),
-        a("Request to add a channel here", href = "https://quantknot.com")
+        a("Request to add a channel here", href = "https://quantknot.com/sailing-creator-dashboard-new-channel-request/")
       ),
       
       column(
         width = 4,
         p("Data updated daily via automated GCP pipeline."),
         a("View source on Github.", 
-          href = "https://github.com/SimonLiles/sailing_channel_dashboard")
+          href = "https://github.com/SimonLiles/sailing_channel_dashboard"),
+        p("Data provided by YouTube. Analysis & Metrics © 2026 Simon Liles."),
+        a("Methodology & Terms", href = "")
       )
     )
   )
