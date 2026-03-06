@@ -254,7 +254,7 @@ ui <- page_navbar(
         a("View source on Github.", 
           href = "https://github.com/SimonLiles/sailing_channel_dashboard"),
         p("Data provided by YouTube. Analysis & Metrics © 2026 Simon Liles."),
-        a("Methodology & Terms", href = "")
+        a("Methodology & Terms", href = "https://quantknot.com/sailing-creator-analytics-methodology-attribution/")
       )
     )
   )
