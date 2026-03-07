@@ -5,6 +5,10 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libxml2-dev \
     libcurl4-openssl-dev \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    protobuf-compiler-grpc \
+    pkg-config \
     && apt-get clean && rm -rf /var/lib/apt/lists/
 
 # Install R packages
