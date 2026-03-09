@@ -4,7 +4,7 @@
    Logic: 
     - Retrieve identifying channel dimenions for active channels.
 ==================================================================== */
-CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.channel_loookup` AS
+CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.channel_lookup` AS
 SELECT 
   channel_id, 
   channel_title, 
