@@ -33,67 +33,53 @@ library(here)
 source(here("scripts", "run_sql.R"))
 
 #initialize big query connection
-message('Initializing BigQuery connection...')
+# message('Initializing BigQuery connection...')
 
 # Authenticate
+message("Authenticating...")
 service_account_path <- here(Sys.getenv("SHINY_SERVICE_ACCOUNT_PATH"))
 bq_auth(path = service_account_path)
+gcs_auth(json_file = service_account_path)
+gcs_global_bucket("yt-sailing-dashboard-cache")
+message("\tAuthenticated")
 
 project <- "yt-sailing-dashboard"
 dataset <- "yt_sailing_data"
 
-# Make connection
-# connection <- dbConnect(
-#   bigrquery::bigquery(),
-#   project = project,
-#   dataset = dataset,
-#   billing = project
-# )
+# GCS cache helpers ####
+read_rds_from_gcs <- function(gcs_name) {
+  tmp <- tempfile(fileext = ".rds")
+  on.exit(unlink(tmp))
+  gcs_get_object(gcs_name, saveToDisk = tmp, overwrite = TRUE)
+  readRDS(tmp)
+}
 
-connection <- dbPool(
-  drv = bigrquery::bigquery(),
-  project = project,
-  dataset = dataset,
-  billing = project, 
-  
-  minSize = 1,
-  idleTimeout = 3600000,
-  
-  onCreate = function(con) {
-    message(paste("New Connection Created!"))
-  }
-)
+gcs_cache_last_modified <- function(gcs_name) {
+  meta <- gcs_get_object(gcs_name, meta = TRUE)
+  meta$updated
+}
 
-onStop(function() {
-  message("Pool detected server stop")
-  message("Pool is closed! Everyone out!")
-  poolClose(connection)
-})
+# Load initial data from GCS (fast — no BigQuery on startup) ####
+message("Loading data from GCS cache...")
+global_summary  <- read_rds_from_gcs("cache/global_summary.rds")
+leaderboard_30d <- read_rds_from_gcs("cache/leaderboard_30d.rds")
+channel_lookup  <- read_rds_from_gcs("cache/channel_lookup.rds")
+message("Data loaded.")
 
-message('\tConnected to BigQuery')
-
-# message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-# global_summary <- dbGetQuery(connection,
-#                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
-# 
-# message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-# leaderboard_30d <- dbGetQuery(connection,
-#                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-# 
-# message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
-# channel_lookup <- dbGetQuery(connection,
-#                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
-
-message("Downloading global_summary table")
-global_summary <- bq_table_download(bq_table(project, dataset, "global_summary"))
-message("Downloading leaderboard_30d table")
-leaderboard_30d <- bq_table_download(bq_table(project, dataset, "leaderboard_30d"))
-message("Downloading channel_loookup table")
-channel_loookup <- bq_table_download(bq_table(project, dataset, "channel_loookup"))
-
-global_summary <- data.frame()
-leaderboard_30d <- data.frame()
-# channel_lookup <- data.frame()
+# Per-channel BigQuery query helper ####
+# Fresh connection per call — immune to idle stale connection issues.
+# bq_auth() above means authentication is already cached for the process;
+# only the TCP connection is new each time, which BigQuery establishes quickly.
+run_channel_query <- function(sql_path, params = NULL) {
+  con <- dbConnect(
+    bigrquery::bigquery(),
+    project = project,
+    dataset = dataset,
+    billing = project
+  )
+  on.exit(dbDisconnect(con), add = TRUE)
+  dbGetQuery(con, read_sql(sql_path), params = params)
+}
 
 # UI Code: Define frontend, user interface ####
 ui <- page_navbar(
@@ -189,8 +175,7 @@ ui <- page_navbar(
     fluidRow(
       column(12, align = "center",
        selectizeInput("selected_channel", "Search for a Channel:", 
-                        choices = "",
-                        selected = "",
+                        choices = NULL,
                         options = list(
                           placeholder = 'Type a channel name...', 
                           allowClear = TRUE,
@@ -202,7 +187,12 @@ ui <- page_navbar(
     ), # End of Search bar
     
     # The Data Area (Hidden until a channel is selected)
-    uiOutput("channel_dashboard_ui"),
+    withSpinner(
+      uiOutput("channel_dashboard_ui"),
+      type = 8,
+      color = "#002B5B",
+      caption = "Loading channel data..."
+    ),
   ), # End of Creator Explorer page
   
   # The Leaderboard Page ####
@@ -224,8 +214,7 @@ ui <- page_navbar(
     fluidRow(
       column(12, align = "center",
         selectizeInput("selected_channel_benchmarks", "Search for a Channel:", 
-                        choices = "",
-                        selected = "",
+                        choices = NULL,
                         options = list(
                           placeholder = 'Type a channel name...', 
                           allowClear = TRUE,
@@ -280,41 +269,23 @@ server <- function(input, output, session) {
     intervalMillis = 3600000,
     session = session,
     checkFunc = function() {
-      message("Checking for fresh data from BigQuery")
-      check_query <- "SELECT MAX(created_at) as last_update FROM `yt_sailing_data.daily_metrics_history`;"
-      result <- dbGetQuery(connection, check_query)
-      return(result$last_update)
+      # Lightweight metadata request — no BigQuery, no pool
+      message("Checking GCS cache freshness...")
+      gcs_cache_last_modified("cache/global_summary.rds")
     },
     valueFunc = function() {
-      message("♻️ Polling BigQuery for fresh data...")
+      message("♻️ Fresh cache detected — reloading from GCS...")
       t <- system.time({
-        message("Downloading global_summary table")
-        global_summary_pull <- bq_table_download(bq_table(project, dataset, "global_summary"))
-        message("Downloading leaderboard_30d table")
-        leaderboard_30d_pull <- bq_table_download(bq_table(project, dataset, "leaderboard_30d"))
-        message("Downloading channel_loookup table")
-        channel_lookup_pull <- bq_table_download(bq_table(project, dataset, "channel_loookup"))
-        
-        # message(paste("Querying:", here("sql", "04_apps", "get_global_summary.sql")))
-        # global_summary_pull <- dbGetQuery(connection, 
-        #                              read_sql(here("sql", "04_apps", "get_global_summary.sql")))
-        # 
-        # message(paste("Querying:", here("sql", "04_apps", "get_leaderboard_30d.sql")))
-        # leaderboard_30d_pull <- dbGetQuery(connection, 
-        #                               read_sql(here("sql", "04_apps", "get_leaderboard_30d.sql")))
-        # 
-        # message(paste("Querying:", here("sql", "04_apps", "get_channel_lookup.sql")))
-        # channel_lookup_pull <- dbGetQuery(connection,
-        #                              read_sql(here("sql", "04_apps", "get_channel_lookup.sql")))
+        gs  <- read_rds_from_gcs("cache/global_summary.rds")
+        lb  <- read_rds_from_gcs("cache/leaderboard_30d.rds")
+        cl  <- read_rds_from_gcs("cache/channel_lookup.rds")
       })
-      
-      message(paste("Data pull took", t['elapsed'], "seconds"))
-      
-      return(list(
-        global_summary_pull = global_summary_pull,
-        leaderboard_30d_pull = leaderboard_30d_pull,
-        channel_lookup_pull = channel_lookup_pull
-      ))
+      message(paste("GCS reload took", t["elapsed"], "seconds"))
+      list(
+        global_summary_pull  = gs,
+        leaderboard_30d_pull = lb,
+        channel_lookup_pull  = cl
+      )
     }
   )
   
@@ -562,6 +533,7 @@ server <- function(input, output, session) {
   updateSelectizeInput(
     session,
     "selected_channel",
+    selected = character(0),
     choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title),
     server = TRUE
   )
@@ -589,23 +561,21 @@ server <- function(input, output, session) {
   # }, ignoreInit = TRUE)
   
   channel_profile <- reactive({
-    # This acts as the bouncer. If nothing is selected, STOP and show nothing.
-    req(input$selected_channel) 
-    
-    message(paste("Querying:", here("sql", "04_apps", "get_channel_profile.sql")))
-    dbGetQuery(connection,
-               read_sql(here("sql", "04_apps", "get_channel_profile.sql")),
-               params = list(id = input$selected_channel))
+    req(input$selected_channel)
+    message(paste("Querying channel profile for:", input$selected_channel))
+    run_channel_query(
+      here("sql", "04_apps", "get_channel_profile.sql"),
+      params = list(id = input$selected_channel)
+    )
   })
   
   channel_history <- reactive({
-    # This acts as the bouncer. If nothing is selected, STOP and show nothing.
-    req(input$selected_channel) 
-    
-    message(paste("Querying:", here("sql", "04_apps", "get_channel_history.sql")))
-    dbGetQuery(connection,
-               read_sql(here("sql", "04_apps", "get_channel_history.sql")),
-               params = list(id = input$selected_channel))
+    req(input$selected_channel)
+    message(paste("Querying channel history for:", input$selected_channel))
+    run_channel_query(
+      here("sql", "04_apps", "get_channel_history.sql"),
+      params = list(id = input$selected_channel)
+    )
   })
   
   # Create the layout for the channel explorer page ####
@@ -862,6 +832,7 @@ server <- function(input, output, session) {
   updateSelectizeInput(
     session, 
     "selected_channel_benchmarks", 
+    selected = character(0),
     choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title), 
     server = TRUE
   )

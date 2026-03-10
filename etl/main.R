@@ -8,6 +8,7 @@ require(gargle)
 require(DBI)
 require(glue)
 require(here)
+require(googleCloudStorageR)
 
 #0. Get helper functions
 source(here("scripts", "run_sql.R"))
@@ -97,6 +98,31 @@ lapply(sql_ops_sequence, function(X) {
   run_sql_file(connection = connection,
                path = X)
 })
+
+# 5. Write cache files to GCS ####
+message("Writing cache files to GCS...")
+
+gcs_auth(json_file = service_account_path)
+gcs_global_bucket("yt-sailing-dashboard-cache")
+
+# Helper: serialize to a temp file and upload
+upload_as_rds <- function(data, gcs_name) {
+  tmp <- tempfile(fileext = ".rds")
+  on.exit(unlink(tmp))
+  saveRDS(data, tmp)
+  gcs_upload(tmp, name = gcs_name, predefinedAcl = "bucketLevel")
+  message(paste("\tUploaded:", gcs_name))
+}
+
+global_summary_cache  <- bq_table_download(bq_table(project, dataset, "global_summary"))
+leaderboard_30d_cache <- bq_table_download(bq_table(project, dataset, "leaderboard_30d"))
+channel_lookup_cache  <- bq_table_download(bq_table(project, dataset, "channel_lookup"))
+
+upload_as_rds(global_summary_cache,  "cache/global_summary.rds")
+upload_as_rds(leaderboard_30d_cache, "cache/leaderboard_30d.rds")
+upload_as_rds(channel_lookup_cache,  "cache/channel_lookup.rds")
+
+message("GCS cache write complete.")
 
 # Clean Up #####################################################################
 message('Process Complete, cleaning up...')

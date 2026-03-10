@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/
 
 # Install R packages
-RUN R -e "install.packages(c('shinydashboard', 'shinydashboardPlus', 'shinythemes', 'reactable', 'bslib', 'shinycssloaders', 'httr', 'jsonlite', 'bigrquery', 'DBI', 'plotly', 'glue', 'here', 'ggthemes', 'scales', 'pool', 'bigrquerystorage'), repos='https://cran.rstudio.com/')"
+RUN R -e "install.packages(c('shinydashboard', 'shinydashboardPlus', 'shinythemes', 'reactable', 'bslib', 'shinycssloaders', 'httr', 'jsonlite', 'bigrquery', 'DBI', 'plotly', 'glue', 'here', 'ggthemes', 'scales', 'pool', 'bigrquerystorage', 'googleCloudStorageR'), repos='https://cran.rstudio.com/')"
 
 # Create a directory for your shared scripts
 RUN mkdir -p /srv/shiny-server/scripts
