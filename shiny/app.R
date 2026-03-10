@@ -38,9 +38,16 @@ source(here("scripts", "run_sql.R"))
 
 # Authenticate
 message("Authenticating...")
-service_account_path <- here(Sys.getenv("SHINY_SERVICE_ACCOUNT_PATH"))
-bq_auth(path = service_account_path)
-gcs_auth(json_file = service_account_path)
+if (Sys.getenv("SHINY_ENV") == "production") {
+  # Cloud Run: use Application Default Credentials injected by the runtime
+  bq_auth()
+  gcs_auth()
+} else {
+  # Local development: use explicit service account key file
+  service_account_path <- here(Sys.getenv("SHINY_SERVICE_ACCOUNT_PATH"))
+  bq_auth(path = service_account_path)
+  gcs_auth(json_file = service_account_path)
+}
 gcs_global_bucket("yt-sailing-dashboard-cache")
 message("\tAuthenticated")
 
