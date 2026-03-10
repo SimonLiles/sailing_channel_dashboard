@@ -885,28 +885,28 @@ server <- function(input, output, session) {
           title = "Views past 30 days",
           value = channel_growth_metrics()$total_views_30d,
           h5(paste0(channel_growth_metrics()$view_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "7 Day Average Views",
           value = channel_growth_metrics()$views_moving_avg_7d,
           h5(paste0(channel_growth_metrics()$view_7d_avg_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "New Subscribers past 30 days",
           value = channel_growth_metrics()$daily_new_subs,
           h5(paste0(channel_growth_metrics()$daily_sub_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "Catalog Yield",
           value = channel_growth_metrics()$views_per_vid_30d,
           h5(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           p("Views per Video past 30 days"),
           fill = FALSE
         ),
@@ -914,7 +914,7 @@ server <- function(input, output, session) {
           title = "Audience Activation",
           value = channel_growth_metrics()$views_per_sub_30d,
           h5(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           p("Views per Subscriber past 30 days"),
           fill = FALSE
         ),
@@ -949,7 +949,7 @@ server <- function(input, output, session) {
           log 10 scales. This is a data visualization trick to spread the points
           close to the origin further apart, and group together points that are 
           further from the origin. Without the transformation on the axes, almost
-          all of the ponts would crowd the lower left corner, and the biggest 
+          all of the points would crowd the lower left corner, and the biggest 
           channel (in this case: Sailing La Vagabonde) would be plotted in the 
           upper right hand corner. With the squeezed data, in the lifetime data,
           a pattern becomes obvious, this is YouTube's algorithmic floor. Using 
