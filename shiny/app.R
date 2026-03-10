@@ -800,6 +800,22 @@ server <- function(input, output, session) {
           width = 6,
         ),
       ),
+      
+      # Negative value footnote — only renders when relevant
+      if (any(c(
+        tail(channel_history()$subscriber_count, n = 1),
+        tail(channel_history()$daily_new_views, n = 1),
+        tail(channel_history()$video_count, n = 1),
+        tail(channel_history()$views_moving_avg_7d, n = 1)
+      ) < 0)) {
+        tags$p(
+          class = "text-muted fst-italic mt-3 px-3",
+          icon("circle-info", lib = "font-awesome"),
+          "Negative trailing averages indicate significant recent content removal,
+           which affects rolling calculations. This may reflect a channel
+           restructuring or content strategy change."
+        )
+      }
     )
   })
   
