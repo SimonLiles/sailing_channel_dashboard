@@ -19,6 +19,7 @@ library(shinycssloaders)
 library(bigrquery)
 library(bigrquerystorage)
 library(DBI)
+library(googleCloudStorageR)
 library(pool)
 library(tidyverse)
 

@@ -22,7 +22,7 @@ RUN mkdir -p /srv/shiny-server/sql
 COPY shiny/app.R /srv/shiny-server/
 COPY scripts/run_sql.R /srv/shiny-server/scripts/
 COPY sql/ /srv/shiny-server/sql
-COPY shiny/www /srv/shiny-server/wwww
+COPY shiny/www /srv/shiny-server/www
 
 COPY .here /srv/shiny-server/.here
 
