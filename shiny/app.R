@@ -89,6 +89,19 @@ run_channel_query <- function(sql_path, params = NULL) {
   dbGetQuery(con, read_sql(sql_path), params = params)
 }
 
+format_youtube_style <- function(n) {
+  case_when(
+    is.na(n)        ~ "N/A",
+    n < 1000        ~ formatC(n, format = "d", big.mark = ","),
+    n < 10000       ~ paste0(round(n / 1000, 2), "K"),
+    n < 100000      ~ paste0(round(n / 1000, 1), "K"),
+    n < 1000000     ~ paste0(round(n / 1000, 0), "K"),
+    n < 10000000    ~ paste0(round(n / 1000000, 2), "M"),
+    n < 100000000   ~ paste0(round(n / 1000000, 1), "M"),
+    TRUE            ~ paste0(round(n / 1000000, 0), "M")
+  )
+}
+
 # UI Code: Define frontend, user interface ####
 ui <- page_navbar(
   theme = bs_theme(
@@ -207,9 +220,9 @@ ui <- page_navbar(
   nav_panel('The Leaderboard',
     radioButtons("leaderboard_rank_by",
       label = "Rank By:",
-      choices = c("Subscribers", "Lifetime Views", "Video Count", "Views (30d)",
-                  "7 Day Avg Views", "Subscriber Growth (30d)", "Views per Video (30d)", 
-                  "Views per Subscriber (30d)"),
+      choices = c("Subscribers", "Total Views", "Videos", "Views (30d)",
+                  "7D Avg Views", "Sub Growth (30d)", "Views/Video (30d)", 
+                  "Views/Sub (30d)"),
       inline = TRUE,
       selected = "Views (30d)"
     ),
@@ -390,137 +403,102 @@ server <- function(input, output, session) {
   
   column_selection <- rank_views_cols
   
-  ## Column Name Selection ####
-  channel_dimensions_colDefs <- list(
-    profile_pic = colDef(
-      name = "", 
-      maxWidth = 60,
-      cell = function(value) {
-        # Render the HTML image tag
-        tags$img(
-          src = value, 
-          height = "40px", 
-          width = "40px",
-          style = "border-radius: 50%; object-fit: cover;" # Makes them circular
-        )
-      }
-    ),
-    channel_title = colDef(name = "Creator"),
-    channel_handle = colDef(name = "Handle"), 
-    
-    subscriber_count = colDef(name = "Subscribers", format = colFormat(separators = TRUE)),
-    view_count = colDef(name = "Lifetime View Count", format = colFormat(separators = TRUE)),
-    video_count = colDef(name = "Video Count", format = colFormat(separators = TRUE)),
-    
-    total_views_30d = colDef(name = "Views (30d)", format = colFormat(separators = TRUE)),
-    views_moving_avg_7d = colDef(name = "7 Day Avg Views", format = colFormat(separators = TRUE)),
-    total_subs_30d = colDef(name = "Subscriber Growth (30d)", format = colFormat(separators = TRUE)),
-  
-    views_per_vid_30d = colDef(name = "Views per Video (30d)", format = colFormat(separators = TRUE)),
-    views_per_sub_30d = colDef(name = "Views per Subscriber (30d)", format = colFormat(separators = TRUE))
-  )
-  
-  rank_subs_colDefs <- c(
-    list(sub_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  rank_lifetime_views_colDefs <- c(
-    list(lifetime_view_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  rank_video_count_colDefs <- c(
-    list(video_count_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  rank_views_colDefs <- c(
-    list(view_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  rank_view_7d_avg_colDefs <- c(
-    list(view_7d_avg_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  rank_daily_sub_colDefs <- c(
-    list(daily_sub_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  rank_views_per_vid_30d_colDefs <- c(
-    list(views_per_vid_30d_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  rank_views_per_sub_colDefs <- c(
-    list(views_per_sub_30d_rank = colDef(
-      name = "Rank",
-      maxWidth = 100
-    )),
-    channel_dimensions_colDefs
-  )
-  
-  leaderboard_colDefs <- rank_views_cols
   
   ## Build the leaderboard table ####
-  output$leaderboard_reactable <- renderUI(
+  output$leaderboard_reactable <- renderUI({
+    switch(input$leaderboard_rank_by,
+           "Subscribers"      = { column_selection <- rank_subs_cols },
+           "Total Views"      = { column_selection <- rank_lifetime_views_cols },
+           "Videos"           = { column_selection <- rank_video_count_cols },
+           "Views (30d)"      = { column_selection <- rank_views_cols },
+           "7D Avg Views"     = { column_selection <- rank_view_7d_avg_cols },
+           "Sub Growth (30d)" = { column_selection <- rank_daily_sub_cols },
+           "Views/Video (30d)"= { column_selection <- rank_view_per_vid_30d_cols },
+           "Views/Sub (30d)"  = { column_selection <- rank_view_per_sub_cols }
+    )
+    
+    leaderboard_30d_sorted <- leaderboard_30d %>%
+      select(all_of(column_selection)) %>%
+      arrange(pick(1))
+    
+    # colDefs defined here so cell renderers can close over leaderboard_30d_sorted
+    channel_dimensions_colDefs <- list(
+      profile_pic = colDef(
+        name = "",
+        maxWidth = 60,
+        cell = function(value) {
+          tags$img(
+            src = value,
+            height = "40px",
+            width = "40px",
+            style = "border-radius: 50%; object-fit: cover;"
+          )
+        }
+      ),
+      channel_title = colDef(
+        name = "Creator",
+        minWidth = 150
+      ),
+      channel_handle = colDef(
+        name = "Handle",
+        minWidth = 120,
+        style = list(whiteSpace = "nowrap"),
+        cell = function(value) {
+          tags$a(
+            href = paste0("https://www.youtube.com/", value),
+            target = "_blank",
+            value
+          )
+        }
+      ),
+      subscriber_count    = colDef(
+        name = "Subscribers",
+        align = "right",
+        cell = function(value) {
+          if (value < 1000) {
+            formatC(value, format = "d", big.mark = ",")
+          } else {
+            paste0("~", format_youtube_style(value))
+          }
+        }
+      ),
+      view_count          = colDef(name = "Total Views",       format = colFormat(separators = TRUE)),
+      video_count         = colDef(name = "Videos",            format = colFormat(separators = TRUE)),
+      total_views_30d     = colDef(name = "Views (30d)",       format = colFormat(separators = TRUE)),
+      views_moving_avg_7d = colDef(name = "7D Avg Views",      format = colFormat(separators = TRUE)),
+      total_subs_30d      = colDef(
+        name = "Sub Growth (30d)",
+        align = "right",
+        cell = function(value, index) {
+          sub_count <- leaderboard_30d_sorted$subscriber_count[index]
+          if (sub_count < 1000) {
+            formatC(value, format = "d", big.mark = ",")
+          } else if (value == 0) {
+            paste0("< ", formatC(
+              10 ^ (floor(log10(sub_count)) - 2),
+              format = "d", big.mark = ","
+            ))
+          } else {
+            paste0("~", formatC(value, format = "d", big.mark = ","))
+          }
+        }
+      ),
+      views_per_vid_30d   = colDef(name = "Views/Video (30d)", format = colFormat(separators = TRUE)),
+      views_per_sub_30d   = colDef(name = "Views/Sub (30d)",   format = colFormat(separators = TRUE))
+    )
+    
+    leaderboard_colDefs <- switch(input$leaderboard_rank_by,
+                                  "Subscribers"       = c(list(sub_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Total Views"       = c(list(lifetime_view_rank  = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Videos"            = c(list(video_count_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Views (30d)"       = c(list(view_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "7D Avg Views"      = c(list(view_7d_avg_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Sub Growth (30d)"  = c(list(daily_sub_rank      = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Views/Video (30d)" = c(list(views_per_vid_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Views/Sub (30d)"   = c(list(views_per_sub_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs)
+    )
+    
     output$leaderboard_table <- renderReactable({
-      switch(input$leaderboard_rank_by,
-         "Subscribers" = {
-           column_selection <- rank_subs_cols
-           leaderboard_colDefs <- rank_subs_colDefs
-         },
-         "Lifetime Views" = {
-           column_selection <- rank_lifetime_views_cols
-           leaderboard_colDefs <- rank_lifetime_views_colDefs
-         },
-         "Video Count" = {
-           column_selection <- rank_video_count_cols
-           leaderboard_colDefs <- rank_video_count_colDefs
-         },
-         "Views (30d)" = {
-           column_selection <- rank_views_cols
-           leaderboard_colDefs <- rank_views_colDefs
-         },
-         "7 Day Avg Views" = {
-           column_selection <- rank_view_7d_avg_cols
-           leaderboard_colDefs <- rank_view_7d_avg_colDefs
-         },
-         "Subscriber Growth (30d)" = {
-           column_selection <- rank_daily_sub_cols
-           leaderboard_colDefs <- rank_daily_sub_colDefs
-         },
-         "Views per Video (30d)" = {
-           column_selection <- rank_view_per_vid_30d_cols
-           leaderboard_colDefs <- rank_views_per_vid_30d_colDefs
-         },
-         "Views per Subscriber (30d)" = {
-           column_selection <- rank_view_per_sub_cols
-           leaderboard_colDefs <- rank_views_per_sub_colDefs
-         }
-      )
-      
-      leaderboard_30d_sorted <- leaderboard_30d %>%
-        select(all_of(column_selection)) %>%
-        arrange(pick(1))
-      
       reactable(
         leaderboard_30d_sorted,
         columns = leaderboard_colDefs,
@@ -532,7 +510,24 @@ server <- function(input, output, session) {
         compact = FALSE,
       )
     })
-  )
+    
+    tagList(
+      reactableOutput("leaderboard_table"),
+      tags$p(
+        class = "text-muted fst-italic mt-2 px-1 small",
+        "† Subscriber Count and Sub Growth (30d) are subject to YouTube's API 
+       resolution limits. Values are shown as reported and marked with ~ to 
+       indicate potential rounding. Channels with fewer than 1,000 subscribers 
+       are reported exactly. All other columns reflect precise values."
+      ),
+      tags$p(
+        class = "text-muted fst-italic mt-2 px-1 small",
+        "†† Negative trailing averages indicate significant recent content removal,
+       which affects rolling calculations. This may reflect a channel
+       restructuring or content strategy change."
+      )
+    )
+  })
   
   # Get and Render Channel Explorer data ####
   # Load the search bar with channels as user searches
@@ -800,6 +795,22 @@ server <- function(input, output, session) {
           width = 6,
         ),
       ),
+      
+      # Negative value footnote — only renders when relevant
+      if (any(c(
+        tail(channel_history()$subscriber_count, n = 1),
+        tail(channel_history()$daily_new_views, n = 1),
+        tail(channel_history()$video_count, n = 1),
+        tail(channel_history()$views_moving_avg_7d, n = 1)
+      ) < 0)) {
+        tags$p(
+          class = "text-muted fst-italic mt-3 px-3",
+          icon("circle-info", lib = "font-awesome"),
+          "Negative trailing averages indicate significant recent content removal,
+           which affects rolling calculations. This may reflect a channel
+           restructuring or content strategy change."
+        )
+      }
     )
   })
   
@@ -869,28 +880,28 @@ server <- function(input, output, session) {
           title = "Views past 30 days",
           value = channel_growth_metrics()$total_views_30d,
           h5(paste0(channel_growth_metrics()$view_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "7 Day Average Views",
           value = channel_growth_metrics()$views_moving_avg_7d,
           h5(paste0(channel_growth_metrics()$view_7d_avg_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "New Subscribers past 30 days",
           value = channel_growth_metrics()$daily_new_subs,
           h5(paste0(channel_growth_metrics()$daily_sub_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "Catalog Yield",
           value = channel_growth_metrics()$views_per_vid_30d,
           h5(paste0(channel_growth_metrics()$views_per_vid_30d_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           p("Views per Video past 30 days"),
           fill = FALSE
         ),
@@ -898,7 +909,7 @@ server <- function(input, output, session) {
           title = "Audience Activation",
           value = channel_growth_metrics()$views_per_sub_30d,
           h5(paste0(channel_growth_metrics()$views_per_sub_30d_percentile,
-                   "th perecentile")),
+                   "th percentile")),
           p("Views per Subscriber past 30 days"),
           fill = FALSE
         ),
@@ -933,7 +944,7 @@ server <- function(input, output, session) {
           log 10 scales. This is a data visualization trick to spread the points
           close to the origin further apart, and group together points that are 
           further from the origin. Without the transformation on the axes, almost
-          all of the ponts would crowd the lower left corner, and the biggest 
+          all of the points would crowd the lower left corner, and the biggest 
           channel (in this case: Sailing La Vagabonde) would be plotted in the 
           upper right hand corner. With the squeezed data, in the lifetime data,
           a pattern becomes obvious, this is YouTube's algorithmic floor. Using 
