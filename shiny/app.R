@@ -175,8 +175,7 @@ ui <- page_navbar(
     fluidRow(
       column(12, align = "center",
        selectizeInput("selected_channel", "Search for a Channel:", 
-                        choices = "",
-                        selected = "",
+                        choices = NULL,
                         options = list(
                           placeholder = 'Type a channel name...', 
                           allowClear = TRUE,
@@ -188,7 +187,12 @@ ui <- page_navbar(
     ), # End of Search bar
     
     # The Data Area (Hidden until a channel is selected)
-    uiOutput("channel_dashboard_ui"),
+    withSpinner(
+      uiOutput("channel_dashboard_ui"),
+      type = 8,
+      color = "#002B5B",
+      caption = "Loading channel data..."
+    ),
   ), # End of Creator Explorer page
   
   # The Leaderboard Page ####
@@ -210,8 +214,7 @@ ui <- page_navbar(
     fluidRow(
       column(12, align = "center",
         selectizeInput("selected_channel_benchmarks", "Search for a Channel:", 
-                        choices = "",
-                        selected = "",
+                        choices = NULL,
                         options = list(
                           placeholder = 'Type a channel name...', 
                           allowClear = TRUE,
@@ -530,6 +533,7 @@ server <- function(input, output, session) {
   updateSelectizeInput(
     session,
     "selected_channel",
+    selected = character(0),
     choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title),
     server = TRUE
   )
@@ -828,6 +832,7 @@ server <- function(input, output, session) {
   updateSelectizeInput(
     session, 
     "selected_channel_benchmarks", 
+    selected = character(0),
     choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title), 
     server = TRUE
   )
