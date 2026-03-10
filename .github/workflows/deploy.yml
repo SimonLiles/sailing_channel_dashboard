@@ -1,4 +1,4 @@
-name: Test, Build, Push to Artifact Registry and Deploy to Cloud Run
+name: Test, Build, Push and Deploy
 
 on:
   push:
@@ -7,21 +7,46 @@ on:
 env:
   PROJECT_ID: yt-sailing-dashboard
   REGION: us-central1
-  REPO_NAME: yt-sailing-dashboard-containers
-  # The full path to your WIF provider (find this in GCP Console > IAM > Workload Identity)
-  WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
-  WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-  YT_API_KEY: ${{ secrets.YT_API_KEY }}
   ETL_IMAGE_BASE: us-central1-docker.pkg.dev/yt-sailing-dashboard/yt-sailing-dashboard-containers/yt-sailing-channel-etl
   SHINY_IMAGE_BASE: us-central1-docker.pkg.dev/yt-sailing-dashboard/yt-sailing-dashboard-containers/yt-sailing-shiny
 
 jobs:
-  build-and-push:
+  # Job 1: Run R tests before touching any infrastructure
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Cache R packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.R_LIBS_USER }}
+          key: r-${{ hashFiles('**/DESCRIPTION', '**/renv.lock') }}
+          restore-keys: r-
+
+      - name: Install R Dependencies
+        run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue'))"
+
+      - name: Run Unit Tests
+        # YT_API_KEY injected here only for tests that need it,
+        # never passed to docker build
+        env:
+          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        run: Rscript tests/testthat.R
+
+  # Job 2a: Build and push ETL image (runs in parallel with Job 2b)
+  build-etl:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
-      contents: 'read'
-      id-token: 'write' # Required for OIDC authentication
-
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -29,53 +54,71 @@ jobs:
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.WIF_SERVICE_ACCOUNT }}
-
-      - name: Setup R
-        uses: r-lib/actions/setup-r@v2
-        with:
-          use-public-rspm: true
-          
-      - name: Install R Dependencies
-        run: |
-          Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue'))"
-          
-      - name: Run Unit Tests
-        env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}
-        run: Rscript tests/testthat.R
-        
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
-        # Build and Push ETL Image
       - name: Build & Push ETL
-        env:
-          YT_API_KEY: ${{ env.YT_API_KEY}}
         run: |
-          docker build -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
-                       -t ${{ env.ETL_IMAGE_BASE }}:latest \
-                       -f etl/Dockerfile.etl .
+          docker build \
+            -t ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+            -t ${{ env.ETL_IMAGE_BASE }}:latest \
+            -f etl/Dockerfile.etl .
           docker push ${{ env.ETL_IMAGE_BASE }} --all-tags
 
-      # Build & Push Shiny Image
+  # Job 2b: Build and push Shiny image (runs in parallel with Job 2a)
+  build-shiny:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
       - name: Build & Push Shiny
         run: |
-          docker build -t ${{ env.SHINY_IMAGE_BASE }}:${{ github.sha }} \
-                       -t ${{ env.SHINY_IMAGE_BASE }}:latest \
-                       -f shiny/Dockerfile.shiny .
+          docker build \
+            -t ${{ env.SHINY_IMAGE_BASE }}:${{ github.sha }} \
+            -t ${{ env.SHINY_IMAGE_BASE }}:latest \
+            -f shiny/Dockerfile.shiny .
           docker push ${{ env.SHINY_IMAGE_BASE }} --all-tags
-          
+
+  # Job 3: Deploy both services only after both images are confirmed pushed
+  deploy:
+    needs: [build-etl, build-shiny]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Deploy Shiny to Cloud Run
         run: |
           gcloud run deploy yt-sailing-shiny \
             --image ${{ env.SHINY_IMAGE_BASE }}:latest \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --region us-central1 \
+            --project ${{ env.PROJECT_ID }} \
+            --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated
 
@@ -83,5 +126,5 @@ jobs:
         run: |
           gcloud run jobs update yt-sailing-channel-etl-job \
             --image ${{ env.ETL_IMAGE_BASE }}:latest \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
-            --region us-central1
+            --project ${{ env.PROJECT_ID }} \
+            --region ${{ env.REGION }}
