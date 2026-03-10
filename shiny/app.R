@@ -435,8 +435,22 @@ server <- function(input, output, session) {
           )
         }
       ),
-      channel_title       = colDef(name = "Creator"),
-      channel_handle      = colDef(name = "Handle"),
+      channel_title = colDef(
+        name = "Creator",
+        minWidth = 150
+      ),
+      channel_handle = colDef(
+        name = "Handle",
+        minWidth = 120,
+        style = list(whiteSpace = "nowrap"),
+        cell = function(value) {
+          tags$a(
+            href = paste0("https://www.youtube.com/", value),
+            target = "_blank",
+            value
+          )
+        }
+      ),
       subscriber_count    = colDef(
         name = "Subscribers",
         align = "right",
