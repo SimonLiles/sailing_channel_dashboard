@@ -41,7 +41,7 @@ message("Authenticating...")
 if (Sys.getenv("SHINY_ENV") == "production") {
   # Cloud Run: use Application Default Credentials injected by the runtime
   bq_auth()
-  gcs_auth()
+  googleAuthR::gar_gce_auth()
 } else {
   # Local development: use explicit service account key file
   service_account_path <- here(Sys.getenv("SHINY_SERVICE_ACCOUNT_PATH"))
