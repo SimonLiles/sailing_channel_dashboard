@@ -109,7 +109,14 @@ ui <- page_navbar(
     bootswatch = "yeti", # Options: "yeti" (nautical), "flatly", "darkly"
     primary = "#002B5B"
   ),
+  
   tags$head(
+    tags$link(rel = "icon", type = "image/png", href = "favicon.png"),
+    tags$meta(property = "og:title", content = "Sailing Creator Analytics"),
+    tags$meta(property = "og:description", content = "Track and compare 1,064 sailing YouTube channels. Powered by BigQuery and updated daily."),
+    tags$meta(property = "og:image", content = "https://sailing-creators.quantknot.com/og-image.png"),
+    tags$meta(property = "og:url", content = "https://sailing-creators.quantknot.com"),
+    tags$meta(property = "og:type", content = "website"),
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
   
