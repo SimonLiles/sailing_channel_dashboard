@@ -102,8 +102,14 @@ lapply(sql_ops_sequence, function(X) {
 # 5. Write cache files to GCS ####
 message("Writing cache files to GCS...")
 
-gcs_auth(json_file = service_account_path)
-gcs_global_bucket("yt-sailing-dashboard-cache")
+if (Sys.getenv("ETL_ENV") == "production") {
+  bq_auth()
+  googleAuthR::gar_gce_auth()
+} else {
+  service_account_path <- here(Sys.getenv("ETL_SERVICE_ACCOUNT_PATH"))
+  bq_auth(path = service_account_path)
+  gcs_auth(json_file = service_account_path)
+}
 
 # Helper: serialize to a temp file and upload
 upload_as_rds <- function(data, gcs_name) {
