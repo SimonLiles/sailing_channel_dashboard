@@ -111,6 +111,8 @@ if (Sys.getenv("ETL_ENV") == "production") {
   gcs_auth(json_file = service_account_path)
 }
 
+gcs_global_bucket("yt-sailing-dashboard-cache")
+
 # Helper: serialize to a temp file and upload
 upload_as_rds <- function(data, gcs_name) {
   tmp <- tempfile(fileext = ".rds")
