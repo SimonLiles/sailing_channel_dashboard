@@ -31,6 +31,8 @@ CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.channel_dimensi
     is_sub_count_hidden BOOLEAN,
     channel_keywords STRING,
     profile_pic STRING,
+    status STRING,
+    type STRING,
     added_by STRING,
     created_at TIMESTAMP,
     updated_at TIMESTAMP

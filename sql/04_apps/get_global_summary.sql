@@ -10,16 +10,16 @@ CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.global_summary` AS
 WITH daily_aggregates AS (
   SELECT 
     date,
-    SUM(daily_new_views) AS total_views,
-    SUM(daily_new_subs) AS total_subs,
+    SUM(GREATEST(daily_new_views, 0)) AS total_views,
+    SUM(GREATEST(daily_new_subs, 0)) AS total_subs,
     COUNT(DISTINCT channel_id) AS active_channels,
     
     -- Get the mean and median for daily views
-    AVG(daily_new_views) AS avg_daily_views,
+    AVG(GREATEST(daily_new_views, 0)) AS avg_daily_views,
     -- PERCENTILE_CONT(daily_new_views, 0.5) AS median_daily_views,
     
     -- Get the mean and median for daily new subs
-    AVG(daily_new_subs) AS avg_daily_subs,
+    AVG(GREATEST(daily_new_subs, 0)) AS avg_daily_subs,
     -- PERCENTILE_CONT(daily_new_subs, 0.5) AS median_daily_subs
   FROM 
     `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance`

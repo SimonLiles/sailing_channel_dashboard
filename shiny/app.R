@@ -72,6 +72,7 @@ message("Loading data from GCS cache...")
 global_summary  <- read_rds_from_gcs("cache/global_summary.rds")
 leaderboard_30d <- read_rds_from_gcs("cache/leaderboard_30d.rds")
 channel_lookup  <- read_rds_from_gcs("cache/channel_lookup.rds")
+today <- as.Date(global_summary$date[1])
 message("Data loaded.")
 
 # Per-channel BigQuery query helper ####
@@ -185,9 +186,9 @@ ui <- page_navbar(
           dateRangeInput(
             inputId = "macro_plot_date_range",
             label = "Date Range",
-            start = Sys.Date() - 365,
-            end = Sys.Date() + 1,
-            max = Sys.Date() + 1,
+            start = today - 365,
+            end = today + 1,
+            max = today + 1,
           ),
           
           # End Date Selection
@@ -397,7 +398,8 @@ server <- function(input, output, session) {
   channel_dim_cols <- c("profile_pic", "channel_title", "channel_handle",
                         "subscriber_count", "view_count", "video_count", 
                         "total_views_30d", "views_moving_avg_7d", "total_subs_30d",
-                        "views_per_vid_30d", "views_per_sub_30d")
+                        "daily_new_subs_pct_growth", "views_per_vid_30d", 
+                        "views_per_sub_30d")
   
   rank_subs_cols <- c("sub_rank", channel_dim_cols)
   rank_lifetime_views_cols <- c("lifetime_view_rank", channel_dim_cols)
@@ -405,6 +407,7 @@ server <- function(input, output, session) {
   rank_views_cols <- c("view_rank", channel_dim_cols)
   rank_view_7d_avg_cols <- c("view_7d_avg_rank", channel_dim_cols)
   rank_daily_sub_cols <- c("daily_sub_rank", channel_dim_cols)
+  rank_daily_sub_growth_pct_cols <- c("daily_sub_growth_pct_rank", channel_dim_cols)
   rank_view_per_vid_30d_cols <- c("views_per_vid_30d_rank", channel_dim_cols)
   rank_view_per_sub_cols <- c("views_per_sub_30d_rank", channel_dim_cols)
   
@@ -414,14 +417,15 @@ server <- function(input, output, session) {
   ## Build the leaderboard table ####
   output$leaderboard_reactable <- renderUI({
     switch(input$leaderboard_rank_by,
-           "Subscribers"      = { column_selection <- rank_subs_cols },
-           "Total Views"      = { column_selection <- rank_lifetime_views_cols },
-           "Videos"           = { column_selection <- rank_video_count_cols },
-           "Views (30d)"      = { column_selection <- rank_views_cols },
-           "7D Avg Views"     = { column_selection <- rank_view_7d_avg_cols },
-           "Sub Growth (30d)" = { column_selection <- rank_daily_sub_cols },
-           "Views/Video (30d)"= { column_selection <- rank_view_per_vid_30d_cols },
-           "Views/Sub (30d)"  = { column_selection <- rank_view_per_sub_cols }
+           "Subscribers"       = { column_selection <- rank_subs_cols },
+           "Total Views"       = { column_selection <- rank_lifetime_views_cols },
+           "Videos"            = { column_selection <- rank_video_count_cols },
+           "Views (30d)"       = { column_selection <- rank_views_cols },
+           "7D Avg Views"      = { column_selection <- rank_view_7d_avg_cols },
+           "Sub Growth (30d)"  = { column_selection <- rank_daily_sub_cols },
+           "Sub % Growth (30d)"= { column_selection <- rank_daily_sub_growth_pct_cols },
+           "Views/Video (30d)" = { column_selection <- rank_view_per_vid_30d_cols },
+           "Views/Sub (30d)"   = { column_selection <- rank_view_per_sub_cols }
     )
     
     leaderboard_30d_sorted <- leaderboard_30d %>%
@@ -490,19 +494,27 @@ server <- function(input, output, session) {
           }
         }
       ),
+      total_subs_pct_growth_30d = colDef(
+        name = "Sub % Growth (30d)",
+        align = "right",
+        cell = function(value, index) {
+          paste0(value, "%")
+        }
+      ),
       views_per_vid_30d   = colDef(name = "Views/Video (30d)", format = colFormat(separators = TRUE)),
       views_per_sub_30d   = colDef(name = "Views/Sub (30d)",   format = colFormat(separators = TRUE))
     )
     
     leaderboard_colDefs <- switch(input$leaderboard_rank_by,
-                                  "Subscribers"       = c(list(sub_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "Total Views"       = c(list(lifetime_view_rank  = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "Videos"            = c(list(video_count_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "Views (30d)"       = c(list(view_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "7D Avg Views"      = c(list(view_7d_avg_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "Sub Growth (30d)"  = c(list(daily_sub_rank      = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "Views/Video (30d)" = c(list(views_per_vid_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "Views/Sub (30d)"   = c(list(views_per_sub_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs)
+                                  "Subscribers"         = c(list(sub_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Total Views"         = c(list(lifetime_view_rank  = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Videos"              = c(list(video_count_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Views (30d)"         = c(list(view_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "7D Avg Views"        = c(list(view_7d_avg_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Sub Growth (30d)"    = c(list(daily_sub_rank      = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Sub % Growth (30d)"  = c(list(daily_sub_rank      = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Views/Video (30d)"   = c(list(views_per_vid_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Views/Sub (30d)"     = c(list(views_per_sub_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs)
     )
     
     output$leaderboard_table <- renderReactable({
@@ -701,6 +713,18 @@ server <- function(input, output, session) {
         )
     })
     
+    if(is.na(channel_profile()$status)) {
+      channel_status <- "Sailing"
+    } else {
+      channel_status <- channel_profile()$status
+    }
+    
+    if(is.na(channel_profile()$type)) {
+      channel_type <- "Sailing Vlog"
+    } else {
+      channel_type <- channel_profile()$type
+    }
+    
     tagList(
       fluidRow(
         ### About the channel ####
@@ -717,6 +741,8 @@ server <- function(input, output, session) {
               h2(channel_profile()$channel_title), 
               p(channel_profile()$channel_handle), 
               p(paste("Joined:", channel_profile()$join_date)),
+              p(paste("Status:", channel_status)),
+              p(paste("Type:", channel_type)),
             ),
             column(
               width = 3, 

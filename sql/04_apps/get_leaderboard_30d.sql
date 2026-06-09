@@ -37,6 +37,14 @@ SELECT
       ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
     ) AS daily_new_subs,
     
+    ROUND(
+      (SAFE_DIVIDE(
+        ARRAY_LAST(
+          ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
+        ), 
+        MAX(m.subscriber_count)
+    )) * 100, 2) AS daily_new_subs_pct_growth,
+    
     -- Views per video
     ARRAY_LAST(
       ARRAY_AGG(m.lifetime_views_per_vid ORDER BY m.date)
@@ -76,10 +84,10 @@ SELECT
     
     -- Ranking and percentile for 30 day views per video
     DENSE_RANK() OVER (
-      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), SUM(m.video_count)) 
+      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.video_count)) 
       DESC) AS views_per_vid_30d_rank,
     ROUND((1 - PERCENT_RANK() OVER (
-      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), SUM(m.daily_new_videos)) 
+      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.daily_new_videos)) 
       DESC)) * 100) AS views_per_vid_30d_percentile,
       
     -- Ranking and percentile for Audience Activation
@@ -92,7 +100,27 @@ SELECT
 
     -- Ranking and perecentile for daily subs
     DENSE_RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC) AS daily_sub_rank,
-    ROUND((1 - PERCENT_RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC)) * 100) AS daily_sub_percentile
+    ROUND((1 - PERCENT_RANK() OVER (ORDER BY SUM(m.daily_new_subs) DESC)) * 100) AS daily_sub_percentile,
+    
+    -- Ranking and percentile for daily sub growth percentage
+    DENSE_RANK() OVER (
+      ORDER BY ROUND(
+        SAFE_DIVIDE(
+          ARRAY_LAST(
+            ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
+          ),
+          MAX(m.subscriber_count)
+      ), 2) DESC
+    ) AS daily_sub_growth_pct_rank,
+    ROUND((1 - PERCENT_RANK() OVER (
+      ORDER BY ROUND(
+        SAFE_DIVIDE(
+          ARRAY_LAST(
+            ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
+          ),
+          MAX(m.subscriber_count)
+      ), 2) DESC
+    )) * 100) AS daily_sub_growth_pct_percentile
 FROM 
     `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS m
 INNER JOIN 
