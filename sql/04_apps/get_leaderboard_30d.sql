@@ -38,12 +38,12 @@ SELECT
     ) AS daily_new_subs,
     
     ROUND(
-      SAFE_DIVIDE(
+      (SAFE_DIVIDE(
         ARRAY_LAST(
           ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
         ), 
         MAX(m.subscriber_count)
-    ), 2) AS daily_new_subs_pct_growth,
+    )) * 100, 2) AS daily_new_subs_pct_growth,
     
     -- Views per video
     ARRAY_LAST(
