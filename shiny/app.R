@@ -228,9 +228,9 @@ ui <- page_navbar(
   nav_panel('The Leaderboard',
     radioButtons("leaderboard_rank_by",
       label = "Rank By:",
-      choices = c("Subscribers", "Total Views", "Videos", "Views (30d)",
-                  "7D Avg Views", "Sub Growth (30d)", "Sub % Growth (30d)", "Views/Video (30d)", 
-                  "Views/Sub (30d)"),
+      choices = c("Subscribers", "Total Views", "Videos", "New Videos (30d)", 
+                  "Views (30d)", "7D Avg Views", "Sub Growth (30d)", 
+                  "Sub % Growth (30d)", "Views/Video (30d)", "Views/Sub (30d)"),
       inline = TRUE,
       selected = "Views (30d)"
     ),
