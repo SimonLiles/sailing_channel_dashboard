@@ -718,6 +718,8 @@ server <- function(input, output, session) {
               h2(channel_profile()$channel_title), 
               p(channel_profile()$channel_handle), 
               p(paste("Joined:", channel_profile()$join_date)),
+              p(paste("Status:", channel_profile()$status)),
+              p(paste("Type:", channel_profile()$type)),
             ),
             column(
               width = 3, 
