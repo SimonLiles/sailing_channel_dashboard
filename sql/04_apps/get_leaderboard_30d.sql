@@ -39,9 +39,7 @@ SELECT
     
     ROUND(
       (SAFE_DIVIDE(
-        ARRAY_LAST(
-          ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
-        ), 
+        SUM(m.daily_new_subs), 
         MAX(m.subscriber_count)
     )) * 100, 2) AS daily_new_subs_pct_growth,
     
@@ -106,18 +104,14 @@ SELECT
     DENSE_RANK() OVER (
       ORDER BY ROUND(
         SAFE_DIVIDE(
-          ARRAY_LAST(
-            ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
-          ),
+          SUM(m.daily_new_subs),
           MAX(m.subscriber_count)
       ), 2) DESC
     ) AS daily_sub_growth_pct_rank,
     ROUND((1 - PERCENT_RANK() OVER (
       ORDER BY ROUND(
         SAFE_DIVIDE(
-          ARRAY_LAST(
-            ARRAY_AGG(m.daily_new_subs ORDER BY m.date)
-          ),
+          SUM(m.daily_new_subs),
           MAX(m.subscriber_count)
       ), 2) DESC
     )) * 100) AS daily_sub_growth_pct_percentile
