@@ -229,7 +229,7 @@ ui <- page_navbar(
     radioButtons("leaderboard_rank_by",
       label = "Rank By:",
       choices = c("Subscribers", "Total Views", "Videos", "Views (30d)",
-                  "7D Avg Views", "Sub Growth (30d)", "Views/Video (30d)", 
+                  "7D Avg Views", "Sub Growth (30d)", "Sub % Growth (30d)", "Views/Video (30d)", 
                   "Views/Sub (30d)"),
       inline = TRUE,
       selected = "Views (30d)"
@@ -494,7 +494,7 @@ server <- function(input, output, session) {
           }
         }
       ),
-      total_subs_pct_growth_30d = colDef(
+      daily_new_subs_pct_growth = colDef(
         name = "Sub % Growth (30d)",
         align = "right",
         cell = function(value, index) {
@@ -512,7 +512,7 @@ server <- function(input, output, session) {
                                   "Views (30d)"         = c(list(view_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "7D Avg Views"        = c(list(view_7d_avg_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "Sub Growth (30d)"    = c(list(daily_sub_rank      = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
-                                  "Sub % Growth (30d)"  = c(list(daily_sub_rank      = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Sub % Growth (30d)"  = c(list(daily_sub_growth_pct_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "Views/Video (30d)"   = c(list(views_per_vid_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "Views/Sub (30d)"     = c(list(views_per_sub_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs)
     )
