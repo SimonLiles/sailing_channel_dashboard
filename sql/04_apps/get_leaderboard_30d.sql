@@ -76,10 +76,10 @@ SELECT
     
     -- Ranking and percentile for 30 day views per video
     DENSE_RANK() OVER (
-      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), SUM(m.video_count)) 
+      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.video_count)) 
       DESC) AS views_per_vid_30d_rank,
     ROUND((1 - PERCENT_RANK() OVER (
-      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), SUM(m.daily_new_videos)) 
+      ORDER BY SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.daily_new_videos)) 
       DESC)) * 100) AS views_per_vid_30d_percentile,
       
     -- Ranking and percentile for Audience Activation
