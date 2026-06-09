@@ -396,14 +396,15 @@ server <- function(input, output, session) {
   # Render Leader Board Data ####
   ## Column Selection ####
   channel_dim_cols <- c("profile_pic", "channel_title", "channel_handle",
-                        "subscriber_count", "view_count", "video_count", 
-                        "total_views_30d", "views_moving_avg_7d", "total_subs_30d",
-                        "daily_new_subs_pct_growth", "views_per_vid_30d", 
-                        "views_per_sub_30d")
+                        "subscriber_count", "view_count", "video_count",
+                        "new_videos_30d", "total_views_30d", "views_moving_avg_7d", 
+                        "total_subs_30d", "daily_new_subs_pct_growth", 
+                        "views_per_vid_30d", "views_per_sub_30d")
   
   rank_subs_cols <- c("sub_rank", channel_dim_cols)
   rank_lifetime_views_cols <- c("lifetime_view_rank", channel_dim_cols)
   rank_video_count_cols <- c("video_count_rank", channel_dim_cols)
+  rank_new_videos_30d_cols <- c("new_videos_30d_rank", channel_dim_cols)
   rank_views_cols <- c("view_rank", channel_dim_cols)
   rank_view_7d_avg_cols <- c("view_7d_avg_rank", channel_dim_cols)
   rank_daily_sub_cols <- c("daily_sub_rank", channel_dim_cols)
@@ -420,6 +421,7 @@ server <- function(input, output, session) {
            "Subscribers"       = { column_selection <- rank_subs_cols },
            "Total Views"       = { column_selection <- rank_lifetime_views_cols },
            "Videos"            = { column_selection <- rank_video_count_cols },
+           "New Videos (30d)"  = { column_selection <- rank_new_videos_30d_cols },
            "Views (30d)"       = { column_selection <- rank_views_cols },
            "7D Avg Views"      = { column_selection <- rank_view_7d_avg_cols },
            "Sub Growth (30d)"  = { column_selection <- rank_daily_sub_cols },
@@ -475,6 +477,7 @@ server <- function(input, output, session) {
       ),
       view_count          = colDef(name = "Total Views",       format = colFormat(separators = TRUE)),
       video_count         = colDef(name = "Videos",            format = colFormat(separators = TRUE)),
+      new_videos_30d      = colDef(name = "New Videos (30d)",  format = colFormat(separators = TRUE)),
       total_views_30d     = colDef(name = "Views (30d)",       format = colFormat(separators = TRUE)),
       views_moving_avg_7d = colDef(name = "7D Avg Views",      format = colFormat(separators = TRUE)),
       total_subs_30d      = colDef(
@@ -506,9 +509,10 @@ server <- function(input, output, session) {
     )
     
     leaderboard_colDefs <- switch(input$leaderboard_rank_by,
-                                  "Subscribers"         = c(list(sub_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "Subscribers"         = c(list(sub_rank            = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "Total Views"         = c(list(lifetime_view_rank  = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "Videos"              = c(list(video_count_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
+                                  "New Videos (30d)"    = c(list(new_videos_30d_rank = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "Views (30d)"         = c(list(view_rank           = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "7D Avg Views"        = c(list(view_7d_avg_rank    = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
                                   "Sub Growth (30d)"    = c(list(daily_sub_rank      = colDef(name = "Rank", maxWidth = 100)), channel_dimensions_colDefs),
