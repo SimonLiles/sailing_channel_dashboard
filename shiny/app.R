@@ -702,6 +702,18 @@ server <- function(input, output, session) {
         )
     })
     
+    if(is.na(channel_profile()$status)) {
+      channel_status <- "Sailing"
+    } else {
+      channel_status <- channel_profile()$status
+    }
+    
+    if(is.na(channel_profile()$type)) {
+      channel_type <- "Sailing Vlog"
+    } else {
+      channel_type <- channel_profile()$type
+    }
+    
     tagList(
       fluidRow(
         ### About the channel ####
@@ -718,8 +730,8 @@ server <- function(input, output, session) {
               h2(channel_profile()$channel_title), 
               p(channel_profile()$channel_handle), 
               p(paste("Joined:", channel_profile()$join_date)),
-              p(paste("Status:", channel_profile()$status)),
-              p(paste("Type:", channel_profile()$type)),
+              p(paste("Status:", channel_status)),
+              p(paste("Type:", channel_type)),
             ),
             column(
               width = 3, 
