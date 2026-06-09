@@ -72,6 +72,7 @@ message("Loading data from GCS cache...")
 global_summary  <- read_rds_from_gcs("cache/global_summary.rds")
 leaderboard_30d <- read_rds_from_gcs("cache/leaderboard_30d.rds")
 channel_lookup  <- read_rds_from_gcs("cache/channel_lookup.rds")
+today <- as.Date(global_summary$date[1])
 message("Data loaded.")
 
 # Per-channel BigQuery query helper ####
@@ -185,9 +186,9 @@ ui <- page_navbar(
           dateRangeInput(
             inputId = "macro_plot_date_range",
             label = "Date Range",
-            start = Sys.Date() - 365,
-            end = Sys.Date() + 1,
-            max = Sys.Date() + 1,
+            start = today - 365,
+            end = today + 1,
+            max = today + 1,
           ),
           
           # End Date Selection
