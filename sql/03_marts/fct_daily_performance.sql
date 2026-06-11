@@ -1,6 +1,6 @@
 /* ====================================================================
    Layer: 03_Marts
-   Purpose: Calculate analytical KPIs for the Shiny Dashboard.
+   Purpose: Calculate base metrics for the Shiny Dashboard.
    Logic: 
     - 7-Day Rolling Average: Smooths out weekend/weekday volatility.
     - Daily Growth: Calculates views gained since the previous day.
