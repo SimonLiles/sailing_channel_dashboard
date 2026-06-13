@@ -32,6 +32,14 @@ USING (
     ARRAY_LAST(ARRAY_AGG(hist.view_count            ORDER BY hist.date)) AS view_count,
     ARRAY_LAST(ARRAY_AGG(hist.video_count           ORDER BY hist.date)) AS video_count,
 
+    -- 7-day rolling average views (most recent value in window)
+    ROUND(
+      ARRAY_LAST(ARRAY_AGG(hist.views_moving_avg_7d ORDER BY hist.date))
+    , 2) AS views_moving_avg_7d,
+    
+    -- Lifetime views per video (most recent value in window)
+    ARRAY_LAST(ARRAY_AGG(hist.lifetime_views_per_vid ORDER BY hist.date)) AS lifetime_views_per_vid,
+    
     -- Rolling window sums
     SUM(hist.daily_new_views) AS total_views_window,
     SUM(hist.daily_new_subs)  AS total_subs_window,
@@ -39,11 +47,6 @@ USING (
     -- New videos published within window
     ARRAY_LAST(ARRAY_AGG(hist.video_count  ORDER BY hist.date)) -
     ARRAY_FIRST(ARRAY_AGG(hist.video_count ORDER BY hist.date)) AS new_videos_window,
-
-    -- 7-day rolling average views (most recent value in window)
-    ROUND(
-      ARRAY_LAST(ARRAY_AGG(hist.views_moving_avg_7d ORDER BY hist.date))
-    , 2) AS views_moving_avg_7d,
 
     -- Subscriber conversion efficiency
     SAFE_DIVIDE(SUM(hist.daily_new_subs), SUM(hist.daily_new_views)) * 1000 AS sub_conversion_rate,
@@ -55,9 +58,6 @@ USING (
     ROUND(
       SAFE_DIVIDE(SUM(hist.daily_new_subs), MAX(hist.subscriber_count)) * 100
     , 2) AS subs_pct_growth,
-
-    -- Lifetime views per video (most recent value in window)
-    ARRAY_LAST(ARRAY_AGG(hist.lifetime_views_per_vid ORDER BY hist.date)) AS lifetime_views_per_vid,
 
     -- Algorithm performance: window views spread across catalogue
     ROUND(SAFE_DIVIDE(SUM(hist.daily_new_views), MAX(hist.video_count)),      3) AS views_per_vid_window,
