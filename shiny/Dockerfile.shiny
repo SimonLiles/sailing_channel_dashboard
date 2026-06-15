@@ -20,9 +20,15 @@ RUN mkdir -p /srv/shiny-server/sql
 
 # Copy the app code (from the shiny folder)
 COPY shiny/app.R /srv/shiny-server/
+COPY shiny/global.R /srv/shiny-server/
+COPY shiny/ui.R /srv/shiny-server/
+COPY shiny/server.R /srv/shiny-server/
 COPY scripts/run_sql.R /srv/shiny-server/scripts/
 COPY sql/ /srv/shiny-server/sql
 COPY shiny/www /srv/shiny-server/www
+
+COPY shiny/pages/ /srv/shiny-server/pages/
+COPY shiny/utils/ /srv/shiny-server/utils/
 
 COPY .here /srv/shiny-server/.here
 
