@@ -33,33 +33,34 @@ SELECT
 FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_values` as m
 
 INNER JOIN
-  `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_values` as c
+  `yt-sailing-dashboard.yt_sailing_data.vw_channel_metrics_values` as c
   ON m.snapshot_date = c.snapshot_date AND m.channel_id = c.channel_id;
 
 )
 
 SELECT
-    snapshot_date,
-    
-    channel_id,
-    
-    metric_name,
-    
-    scope_type,
-    scope_value
+  snapshot_date,
+  
+  channel_id,
+  
+  metric_name,
+  window_days,
+  
+  scope_type,
+  scope_value
 
-    DENSE_RANK() OVER (
-        PARTITION BY
-            snapshot_date,
-            
-            scope_type, 
-            scope_value,
-            
-            metric_name
-        ORDER BY metric_value DESC
-    ) AS rank
-    
-    percentile
+  DENSE_RANK() OVER (
+    PARTITION BY
+      snapshot_date,
+      
+      scope_type, 
+      scope_value,
+      
+      metric_name
+    ORDER BY metric_value DESC
+  ) AS rank
+  
+  percentile
 FROM combined_metrics_cohorts
 
 WHERE snapshot_date BETWEEN start_date AND end_date
