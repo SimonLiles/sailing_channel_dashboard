@@ -16,6 +16,7 @@
     - Geography: New label thet likely will live in channel dimensions.
 ==================================================================== */
 
+-- Global Cohort
 SELECT
   snapshot_date,
   channel_id,
@@ -28,6 +29,7 @@ FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d`
 
 UNION ALL
 
+-- Subscriber Count Cohorts
 SELECT
   snapshot_date,
   channel_id,
