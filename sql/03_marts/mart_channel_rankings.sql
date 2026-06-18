@@ -20,22 +20,20 @@ DECLARE end_date DATE;
 
 -- Join the metric values table with the cohorts before trying to do the ranking
 WITH combined_metrics_cohorts AS (
-
-SELECT
-  m.snapshot_date,
-  m.channel_id,
-  m.metric_name,
-  m.metric_value,
-  m.window_days,
-  c.cohort_type,
-  c.cohort_value
-
-FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_values` as m
-
-INNER JOIN
-  `yt-sailing-dashboard.yt_sailing_data.vw_channel_metrics_values` as c
-  ON m.snapshot_date = c.snapshot_date AND m.channel_id = c.channel_id;
-
+  SELECT
+    m.snapshot_date,
+    m.channel_id,
+    m.metric_name,
+    m.metric_value,
+    m.window_days,
+    c.cohort_type,
+    c.cohort_value
+  
+  FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_values` as m
+  
+  INNER JOIN
+    `yt-sailing-dashboard.yt_sailing_data.vw_channel_metrics_values` as c
+    ON m.snapshot_date = c.snapshot_date AND m.channel_id = c.channel_id;
 )
 
 SELECT
