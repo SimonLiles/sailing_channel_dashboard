@@ -15,35 +15,64 @@
       it is forwarded here. 
     - Geography: New label thet likely will live in channel dimensions.
 ==================================================================== */
+DECLARE start_date DATE;
+DECLARE end_date DATE;
 
--- Global Cohort
-SELECT
+MERGE `yt-sailing-dashboard.yt_sailing_data.mart_channel_cohorts` AS T
+
+USING (
+  -- Global Cohort
+  SELECT
+    snapshot_date,
+    channel_id,
+    'global' AS cohort_type,
+    'global' AS cohort_value
+  FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d`
+  WHERE snapshot_date BETWEEN @start_date AND @end_date
+
+  UNION ALL
+
+  -- Subscriber Count Cohorts
+  SELECT
+    snapshot_date,
+    channel_id,
+    'subscriber_count' AS cohort_type,
+    CASE
+      WHEN subscriber_count <  1000 THEN '<1K'
+      WHEN subscriber_count >= 1000    AND subscriber_count < 10000    THEN '1k- 10K'
+      WHEN subscriber_count >= 10000   AND subscriber_count < 100000   THEN '10K - 100k'
+      WHEN subscriber_count >= 100000  AND subscriber_count < 500000   THEN '100K - 500k'
+      WHEN subscriber_count >= 500000  AND subscriber_count < 1000000  THEN '500K - 1M'
+      WHEN subscriber_count >= 1000000 AND subscriber_count < 10000000 THEN '1M - 10M'
+      ELSE '10M+'
+    END AS cohort_value
+  FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d`
+  WHERE snapshot_date BETWEEN @start_date AND @end_date
+
+) AS S
+
+ON  T.snapshot_date = S.snapshot_date
+AND T.channel_id    = S.channel_id
+AND T.cohort_type   = S.cohort_type
+
+WHEN MATCHED AND (
+  T.cohort_value IS DISTINCT FROM S.cohort_value
+) THEN UPDATE SET
+  T.cohort_value = S.cohort_value,
+  T.updated_at   = CURRENT_TIMESTAMP()
+
+WHEN NOT MATCHED THEN INSERT (
   snapshot_date,
   channel_id,
-  
-  'global' AS cohort_type,
-  
-  'global' AS cohort_value
-  
-FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d`
-
-UNION ALL
-
--- Subscriber Count Cohorts
-SELECT
-  snapshot_date,
-  channel_id,
-  
-  'subscriber_count' AS cohort_type,
-  
-  CASE
-    WHEN subscriber_count <  1000 THEN '<1K'
-    WHEN subscriber_count >= 1000    AND subscriber_count < 10000    THEN '1k- 10K'
-    WHEN subscriber_count >= 10000   AND subscriber_count < 100000   THEN '10K - 100k'
-    WHEN subscriber_count >= 100000  AND subscriber_count < 500000   THEN '100K - 500k'
-    WHEN subscriber_count >= 500000  AND subscriber_count < 1000000  THEN '500K - 1M'
-    WHEN subscriber_count >= 1000000 AND subscriber_count < 10000000 THEN '1M - 10M'
-    ELSE '10M+'
-  END AS cohort_value
-  
-FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d;
+  cohort_type,
+  cohort_value,
+  created_at,
+  updated_at
+) VALUES (
+  S.snapshot_date,
+  S.channel_id,
+  S.cohort_type,
+  S.cohort_value,
+  CURRENT_TIMESTAMP(),
+  CURRENT_TIMESTAMP()
+);
