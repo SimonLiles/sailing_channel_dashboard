@@ -94,7 +94,7 @@ USING (
         
         CAST(views_per_sub_30d      AS FLOAT64) AS views_per_sub_30d
 
-      FROM `yt-sailing-dashboard.yt_sailing_data.leaderboard_30d`
+      FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics`
     )
     
     UNPIVOT (

@@ -18,7 +18,7 @@ DECLARE start_date DATE;
 DECLARE end_date DATE;
 DECLARE window_days DATE;
 
-MERGE `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d` AS T
+MERGE `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics` AS T
 
 USING (
   SELECT
