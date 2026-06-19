@@ -20,17 +20,15 @@ test_that("SQL orchestration executes without syntax errors on a mock DB", {
   )
   dbWriteTable(mock_conn, "raw_daily_ingest", sample_data)
   
-  # 3. EXECUTION: Try running one of your ops scripts
-  # Note: BigQuery SQL and SQLite SQL are slightly different, 
-  # but standard ANSI SQL (like simple INSERTs/SELECTs) works in both.
+  # 3. EXECUTION: Render a real ops script and verify substitution
   path_to_test_sql <- here("sql", "01_raw", "ops", "merge_channel_dims.sql")
-  
-  # We use skip_if_not to avoid failing if the file isn't created yet
+
   skip_if_not(file.exists(path_to_test_sql))
-  
-  # 4. VERIFICATION: Test that our function handles the execution
-  # expect_error(run_sql_file(mock_conn, path_to_test_sql), NA) # NA means "No error expected"
-  
+
+  rendered <- render_sql(path_to_test_sql, project = "test-proj", dataset = "test_ds")
+  expect_false(grepl("\\{\\{", rendered))
+  expect_match(rendered, "`test-proj.test_ds.channel_dimensions`")
+
   # Clean up
   dbDisconnect(mock_conn)
 })

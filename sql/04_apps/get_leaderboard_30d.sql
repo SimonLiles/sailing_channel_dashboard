@@ -12,7 +12,7 @@
     2. ranked      — applies DENSE_RANK / PERCENT_RANK against named columns
 ==================================================================== */
 
-CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.leaderboard_30d` AS
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.leaderboard_30d` AS
 
 WITH aggregated AS (
   SELECT
@@ -61,9 +61,9 @@ WITH aggregated AS (
     ROUND(SAFE_DIVIDE(SUM(m.daily_new_views), MAX(m.subscriber_count)), 3) AS views_per_sub_30d
 
   FROM
-    `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS m
+    `{{project}}.{{dataset}}.fct_daily_performance` AS m
   INNER JOIN
-    `yt-sailing-dashboard.yt_sailing_data.channel_dimensions` AS d
+    `{{project}}.{{dataset}}.channel_dimensions` AS d
     ON m.channel_id = d.channel_id
   WHERE
     m.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)

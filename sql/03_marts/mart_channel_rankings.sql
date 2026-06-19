@@ -29,10 +29,10 @@ WITH combined_metrics_cohorts AS (
     c.cohort_type,
     c.cohort_value
   
-  FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_values` as m
+  FROM `{{project}}.{{dataset}}.mart_channel_metrics_values` as m
   
   INNER JOIN
-    `yt-sailing-dashboard.yt_sailing_data.vw_channel_metrics_values` as c
+    `{{project}}.{{dataset}}.vw_channel_metrics_values` as c
     ON m.snapshot_date = c.snapshot_date AND m.channel_id = c.channel_id;
 )
 

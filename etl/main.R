@@ -11,6 +11,7 @@ require(here)
 require(googleCloudStorageR)
 
 #0. Get helper functions
+source(here("scripts", "bq_config.R"))
 source(here("scripts", "run_sql.R"))
 
 # 1. Connect to BigQuery ####
@@ -19,8 +20,8 @@ source(here("scripts", "run_sql.R"))
 service_account_path <- here(Sys.getenv("ETL_SERVICE_ACCOUNT_PATH"))
 bq_auth(path = service_account_path)
 
-project <- "yt-sailing-dashboard"
-dataset <- "yt_sailing_data"
+project <- bq_project()
+dataset <- bq_dataset()
 
 # Make connection
 connection <- dbConnect(
@@ -33,7 +34,7 @@ connection <- dbConnect(
 # 2. Get Target IDs ####
 message('Fetching channel list...')
 
-get_channel_ids_query <- read_sql(here("sql", "00_utils", "get_channel_ids.sql"))
+get_channel_ids_query <- render_sql(here("sql", "00_utils", "get_channel_ids.sql"))
 
 channels <- dbGetQuery(connection, get_channel_ids_query)
 
@@ -73,8 +74,11 @@ message("Raw data upload complete!")
 # 4. Clean data and calculate additional metrics
 
 row_check <- dbGetQuery(connection, 
-                        "SELECT COUNT(*) as cnt 
-                        FROM `yt-sailing-dashboard.yt_sailing_data.raw_daily_ingest`"
+                        glue("SELECT COUNT(*) as cnt 
+                        FROM `{{project}}.{{dataset}}.raw_daily_ingest`",
+                             project = project,
+                             dataset = dataset,
+                             .open = "{{", .close = "}}")
                         )$cnt
 
 if (row_check == 0) {

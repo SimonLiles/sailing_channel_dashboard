@@ -20,6 +20,7 @@ library(scales)
 library(here)
 
 # Load shared scripts
+source(here("scripts", "bq_config.R"))
 source(here("scripts", "run_sql.R"))
 
 # Load utility functions
@@ -29,8 +30,8 @@ source(paste("utils", "gcs_cache_last_modified.R", sep = "/"))
 source(paste("utils", "run_channel_query.R", sep = "/"))
 
 # BigQuery connection constants
-project <- "yt-sailing-dashboard"
-dataset <- "yt_sailing_data"
+project <- bq_project()
+dataset <- bq_dataset()
 
 # Authenticate
 message("Authenticating...")

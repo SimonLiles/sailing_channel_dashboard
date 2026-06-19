@@ -5,7 +5,7 @@
          immediately without storing extra data.
 ==================================================================== */
 
-CREATE OR REPLACE VIEW `yt-sailing-dashboard.yt_sailing_data.vw_stg_daily_metrics` AS
+CREATE OR REPLACE VIEW `{{project}}.{{dataset}}.vw_stg_daily_metrics` AS
 SELECT
     channel_id,
     channel_handle,
@@ -22,6 +22,6 @@ SELECT
     channel_keywords,
     profile_pic
 FROM 
-    `yt-sailing-dashboard.yt_sailing_data.raw_daily_ingest`
+    `{{project}}.{{dataset}}.raw_daily_ingest`
 -- Filter out records that are missing essential IDs
 WHERE channel_id IS NOT NULL;

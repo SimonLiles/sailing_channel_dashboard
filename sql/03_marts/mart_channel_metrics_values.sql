@@ -8,7 +8,7 @@
     logic.
 ==================================================================== */
 
-MERGE `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_values` AS T
+MERGE `{{project}}.{{dataset}}.mart_channel_metrics_values` AS T
 
 USING (
   -- Unpivot the snapshot metrics
@@ -41,7 +41,7 @@ USING (
         
         CAST(sub_velocity_per_10k   AS FLOAT64) AS sub_velocity_per_10k
 
-        FROM `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance`
+        FROM `{{project}}.{{dataset}}.fct_daily_performance`
     )
     
     UNPIVOT (
@@ -94,7 +94,7 @@ USING (
         
         CAST(views_per_sub_30d      AS FLOAT64) AS views_per_sub_30d
 
-      FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics`
+      FROM `{{project}}.{{dataset}}.mart_channel_metrics`
     )
     
     UNPIVOT (

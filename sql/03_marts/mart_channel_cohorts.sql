@@ -18,7 +18,7 @@
 DECLARE start_date DATE;
 DECLARE end_date DATE;
 
-MERGE `yt-sailing-dashboard.yt_sailing_data.mart_channel_cohorts` AS T
+MERGE `{{project}}.{{dataset}}.mart_channel_cohorts` AS T
 
 USING (
   -- Global Cohort
@@ -27,7 +27,7 @@ USING (
     channel_id,
     'global' AS cohort_type,
     'global' AS cohort_value
-  FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d`
+  FROM `{{project}}.{{dataset}}.mart_channel_metrics_30d`
   WHERE snapshot_date BETWEEN @start_date AND @end_date
 
   UNION ALL
@@ -46,7 +46,7 @@ USING (
       WHEN subscriber_count >= 1000000 AND subscriber_count < 10000000 THEN '1M - 10M'
       ELSE '10M+'
     END AS cohort_value
-  FROM `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_30d`
+  FROM `{{project}}.{{dataset}}.mart_channel_metrics_30d`
   WHERE snapshot_date BETWEEN @start_date AND @end_date
 
 ) AS S

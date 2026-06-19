@@ -4,12 +4,12 @@
    Logic: 
     - Retrieve identifying channel dimenions for active channels.
 ==================================================================== */
-CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.channel_lookup` AS
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.channel_lookup` AS
 SELECT 
   channel_id, 
   channel_title, 
   channel_handle, 
   profile_pic
-FROM `yt-sailing-dashboard.yt_sailing_data.channel_dimensions`
+FROM `{{project}}.{{dataset}}.channel_dimensions`
 WHERE is_active = TRUE
 ORDER BY channel_title ASC;

@@ -7,7 +7,7 @@
 -- 1. Rolling-Window Channel Metric Snapshots
 -- Composite key: channel_id + snapshot_date + window_days
 -- Populated incrementally via MERGE in mart_channel_metrics.sql
-CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics` (
+CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.mart_channel_metrics` (
     channel_id STRING NOT NULL,
     snapshot_date DATE NOT NULL,
     window_days INT64 NOT NULL,
@@ -32,7 +32,7 @@ PARTITION BY snapshot_date;
 -- 2. Long-Format Channel Metric Values
 -- Composite key: channel_id + snapshot_date + window_days + metric_name
 -- Populated incrementally via MERGE in mart_channel_metrics_values.sql
-CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics_values` (
+CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.mart_channel_metrics_values` (
     snapshot_date DATE NOT NULL,
     channel_id STRING NOT NULL,
     window_days INT64,
@@ -45,7 +45,7 @@ PARTITION BY snapshot_date;
 -- 3. Channel Cohort Assignments
 -- Composite key: snapshot_date + channel_id + cohort_type
 -- Populated incrementally via MERGE in mart_channel_cohorts.sql
-CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.mart_channel_cohorts` (
+CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.mart_channel_cohorts` (
     snapshot_date DATE NOT NULL,
     channel_id STRING NOT NULL,
     cohort_type STRING NOT NULL,

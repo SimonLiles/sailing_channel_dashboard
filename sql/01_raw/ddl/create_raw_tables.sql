@@ -6,7 +6,7 @@
 
 -- 1. The Transient Ingest Table (Overwritten daily by the ETL R script)
 -- Everything is a STRING to prevent API type-mismatch crashes.
-CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.raw_daily_ingest` (
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.raw_daily_ingest` (
     channel_id STRING,
     channel_handle STRING,
     title STRING,
@@ -21,7 +21,7 @@ CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.raw_daily_ingest` 
 );
 
 -- 2. The Permanent Dimension Table (The "Master List")
-CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.channel_dimensions` (
+CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.channel_dimensions` (
     channel_id STRING NOT NULL,
     channel_handle STRING NOT NULL,
     is_active BOOLEAN DEFAULT TRUE,
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.channel_dimensi
 
 -- 3. The Permanent Fact History Table
 -- This is where the clean data from Staging finally lands.
-CREATE TABLE IF NOT EXISTS `yt-sailing-dashboard.yt_sailing_data.daily_metrics_history` (
+CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.daily_metrics_history` (
     channel_id STRING NOT NULL,
     date DATE NOT NULL,
     view_count INT64,

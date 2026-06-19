@@ -1,4 +1,4 @@
-MERGE `yt-sailing-dashboard.yt_sailing_data.channel_dimensions` AS T
+MERGE `{{project}}.{{dataset}}.channel_dimensions` AS T
 USING (
   SELECT DISTINCT 
     channel_id, 
@@ -9,7 +9,7 @@ USING (
     is_sub_count_hidden, 
     channel_keywords, 
     profile_pic
-  FROM `yt-sailing-dashboard.yt_sailing_data.vw_stg_daily_metrics`
+  FROM `{{project}}.{{dataset}}.vw_stg_daily_metrics`
 ) AS S
 ON T.channel_id = S.channel_id
 

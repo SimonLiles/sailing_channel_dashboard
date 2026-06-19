@@ -18,7 +18,7 @@ DECLARE start_date DATE;
 DECLARE end_date DATE;
 DECLARE window_days DATE;
 
-MERGE `yt-sailing-dashboard.yt_sailing_data.mart_channel_metrics` AS T
+MERGE `{{project}}.{{dataset}}.mart_channel_metrics` AS T
 
 USING (
   SELECT
@@ -66,9 +66,9 @@ USING (
     ROUND(SAFE_DIVIDE(SUM(hist.daily_new_views), MAX(hist.subscriber_count)), 3) AS views_per_sub_window
 
   FROM
-    `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS anchor
+    `{{project}}.{{dataset}}.fct_daily_performance` AS anchor
   INNER JOIN
-    `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS hist
+    `{{project}}.{{dataset}}.fct_daily_performance` AS hist
       ON  hist.channel_id = anchor.channel_id
       AND hist.date BETWEEN DATE_SUB(anchor.date, INTERVAL @window_days DAY) AND anchor.date
   WHERE

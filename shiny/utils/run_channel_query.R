@@ -6,5 +6,5 @@ run_channel_query <- function(sql_path, params = NULL) {
     billing = project
   )
   on.exit(dbDisconnect(con), add = TRUE)
-  dbGetQuery(con, read_sql(sql_path), params = params)
+  dbGetQuery(con, render_sql(sql_path, project = project, dataset = dataset), params = params)
 }
