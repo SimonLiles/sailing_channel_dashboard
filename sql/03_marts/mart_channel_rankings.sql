@@ -29,8 +29,8 @@ WITH combined_metrics_cohorts AS (
   FROM `{{project}}.{{dataset}}.mart_channel_metrics_values` as m
   
   INNER JOIN
-    `{{project}}.{{dataset}}.vw_channel_metrics_values` as c
-    ON m.snapshot_date = c.snapshot_date AND m.channel_id = c.channel_id;
+    `{{project}}.{{dataset}}.mart_channel_cohorts` as c
+    ON m.snapshot_date = c.snapshot_date AND m.channel_id = c.channel_id
 )
 
 SELECT
@@ -41,21 +41,33 @@ SELECT
   metric_name,
   window_days,
   
-  scope_type,
-  scope_value
+  cohort_type,
+  cohort_value,
 
   DENSE_RANK() OVER (
     PARTITION BY
       snapshot_date,
       
-      scope_type, 
-      scope_value,
+      cohort_type, 
+      cohort_value,
       
       metric_name
     ORDER BY metric_value DESC
-  ) AS rank
+  ) AS rank,
   
-  percentile
+  ROUND(
+    (1 - PERCENT_RANK() OVER (
+      PARTITION BY
+      snapshot_date,
+      
+      cohort_type, 
+      cohort_value,
+      
+      metric_name
+    ORDER BY metric_value DESC
+    )) * 100
+  ) AS percentile
+
 FROM combined_metrics_cohorts
 
 WHERE snapshot_date BETWEEN @start_date AND @end_date;
