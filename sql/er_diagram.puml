@@ -1,0 +1,270 @@
+@startuml
+' Sailing Channel Dashboard - Entity Relationship Diagram
+' Layer colors
+!define RAW_COLOR #E8F5E9
+!define STG_COLOR #FFF3E0
+!define MART_COLOR #E3F2FD
+!define APP_COLOR #F3E5F5
+
+hide circle
+hide empty members
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+skinparam defaultFontName Courier
+
+title <size:18><b>Sailing Channel Dashboard - ER Diagram</b></size>\nData Pipeline: Raw → Staging → Marts → Apps
+
+package "01_Raw - Landing Zone" {
+  entity "raw_daily_ingest" as RAW01 {
+    + channel_id: STRING
+    --
+    channel_handle: STRING
+    title: STRING
+    description: STRING
+    join_date: STRING
+    view_count: STRING
+    subscriber_count: STRING
+    video_count: STRING
+    is_sub_count_hidden: STRING
+    channel_keywords: STRING
+    profile_pic: STRING
+  }
+
+  entity "channel_dimensions" as RAW02 {
+    + channel_id: STRING [NOT NULL]
+    --
+    channel_handle: STRING [NOT NULL]
+    is_active: BOOLEAN [DEFAULT TRUE]
+    channel_title: STRING
+    channel_description: STRING
+    join_date: DATE
+    is_sub_count_hidden: BOOLEAN
+    channel_keywords: STRING
+    profile_pic: STRING
+    status: STRING
+    type: STRING
+    added_by: STRING
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+  }
+
+  entity "daily_metrics_history" as RAW03 {
+    + channel_id: STRING [NOT NULL]
+    + date: DATE [NOT NULL]
+    --
+    view_count: INT64
+    subscriber_count: INT64
+    video_count: INT64
+    created_at: TIMESTAMP
+    --
+    partition: date
+  }
+}
+
+package "02_Staging" {
+  entity "vw_stg_daily_metrics" as STG01 <<VIEW>> {
+    + channel_id: STRING
+    --
+    channel_handle: STRING
+    channel_title: STRING
+    channel_description: STRING
+    join_date: DATE
+    view_count: INT64
+    subscriber_count: INT64
+    video_count: INT64
+    is_sub_count_hidden: BOOLEAN
+    channel_keywords: STRING
+    profile_pic: STRING
+  }
+}
+
+package "03_Marts - Presentation" {
+  entity "fct_daily_performance" as MART01 {
+    + channel_id: STRING
+    + date: DATE
+    --
+    view_count: INT64
+    video_count: INT64
+    subscriber_count: INT64
+    daily_new_views: INT64
+    daily_new_subs: INT64
+    daily_new_videos: INT64
+    lifetime_views_per_vid: FLOAT64
+    lifetime_views_per_sub: FLOAT64
+    lifetime_subs_per_vid: FLOAT64
+    views_moving_avg_7d: FLOAT64
+    sub_velocity_per_10k: FLOAT64
+  }
+
+  entity "mart_channel_metrics" as MART02 {
+    + channel_id: STRING [NOT NULL]
+    + snapshot_date: DATE [NOT NULL]
+    + window_days: INT64 [NOT NULL]
+    --
+    subscriber_count: INT64
+    view_count: INT64
+    video_count: INT64
+    total_views_window: INT64
+    total_subs_window: INT64
+    new_videos_window: INT64
+    views_moving_avg_7d: FLOAT64
+    sub_conversion_rate: FLOAT64
+    daily_new_subs: INT64
+    subs_pct_growth: FLOAT64
+    lifetime_views_per_vid: FLOAT64
+    views_per_vid_window: FLOAT64
+    views_per_sub_window: FLOAT64
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+    --
+    partition: snapshot_date
+  }
+
+  entity "mart_channel_metrics_values" as MART03 {
+    + snapshot_date: DATE [NOT NULL]
+    + channel_id: STRING [NOT NULL]
+    + window_days: INT64
+    + metric_name: STRING [NOT NULL]
+    --
+    metric_value: FLOAT64
+    updated_at: TIMESTAMP
+    --
+    partition: snapshot_date
+  }
+
+  entity "mart_channel_cohorts" as MART04 {
+    + snapshot_date: DATE [NOT NULL]
+    + channel_id: STRING [NOT NULL]
+    + cohort_type: STRING [NOT NULL]
+    --
+    cohort_value: STRING
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+    --
+    partition: snapshot_date
+  }
+
+  entity "mart_channel_rankings" as MART05 {
+    + snapshot_date: DATE [NOT NULL]
+    + channel_id: STRING [NOT NULL]
+    + metric_name: STRING [NOT NULL]
+    + window_days: INT64
+    + cohort_type: STRING [NOT NULL]
+    + cohort_value: STRING
+    --
+    ranking: INT64
+    percentile: INT64
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+    --
+    partition: snapshot_date
+  }
+}
+
+package "04_Apps - Dashboard" {
+  entity "channel_lookup" as APP01 {
+    + channel_id: STRING
+    --
+    channel_title: STRING
+    channel_handle: STRING
+    profile_pic: STRING
+  }
+
+  entity "global_summary" as APP02 {
+    + date: DATE
+    --
+    latest_views: INT64
+    latest_subs: INT64
+    active_channels: INT64
+    avg_daily_views: FLOAT64
+    avg_daily_subs: FLOAT64
+    views_moving_avg_7d: FLOAT64
+    view_growth_pct: FLOAT64
+  }
+
+  entity "leaderboard_30d" as APP03 {
+    + channel_id: STRING
+    --
+    channel_title: STRING
+    channel_handle: STRING
+    profile_pic: STRING
+    subscriber_count: INT64
+    view_count: INT64
+    video_count: INT64
+    total_views_30d: INT64
+    total_subs_30d: INT64
+    new_videos_30d: INT64
+    sub_conversion_rate: FLOAT64
+    views_moving_avg_7d: FLOAT64
+    daily_new_subs: INT64
+    daily_new_subs_pct_growth: FLOAT64
+    lifetime_views_per_vid: FLOAT64
+    views_per_vid_30d: FLOAT64
+    views_per_sub_30d: FLOAT64
+    -- plus ranking columns --
+  }
+}
+
+' ====== RELATIONSHIPS ======
+
+' Pipeline: raw_daily_ingest → vw_stg_daily_metrics
+RAW01 --> STG01 : "SELECT (with casts)"
+
+' Pipeline: vw_stg_daily_metrics → channel_dimensions (MERGE)
+STG01 -right-> RAW02 : "MERGE channel_id"
+
+' Pipeline: vw_stg_daily_metrics → daily_metrics_history (INSERT)
+STG01 --> RAW03 : "INSERT channel_id, date"
+
+' Pipeline: daily_metrics_history → fct_daily_performance
+RAW03 --> MART01 : "SELECT (window functions)"
+
+' Fact: fct_daily_performance → mart_channel_metrics (self-join, rolling windows)
+MART01 -right-> MART02 : "SELECT (30d/90d windows)"
+
+' Mart: mart_channel_metrics → mart_channel_metrics_values (unpivot)
+MART02 --> MART03 : "MERGE (unpivot metrics)"
+
+' Fact: fct_daily_performance → mart_channel_metrics_values (unpivot)
+MART01 --> MART03 : "MERGE (unpivot metrics)"
+
+' Mart: mart_channel_metrics → mart_channel_cohorts
+MART02 --> MART04 : "MERGE (bucket channels)"
+
+' Mart: mart_channel_metrics_values → mart_channel_rankings
+MART03 --> MART05 : "INNER JOIN"
+
+' Mart: mart_channel_cohorts → mart_channel_rankings
+MART04 --> MART05 : "INNER JOIN"
+
+' App: channel_dimensions → channel_lookup
+RAW02 --> APP01 : "SELECT (active channels)"
+
+' App: fct_daily_performance → global_summary
+MART01 --> APP02 : "SELECT (daily aggregates)"
+
+' App: fct_daily_performance → leaderboard_30d
+MART01 --> APP03 : "SELECT (JOIN, 30d window)"
+
+' App: channel_dimensions → leaderboard_30d
+RAW02 --> APP03 : "INNER JOIN"
+
+' ====== LEGEND ======
+legend right
+  <b>Legend</b>
+  <#E8F5E9> 01_Raw
+  <#FFF3E0> 02_Staging
+  <#E3F2FD> 03_Marts
+  <#F3E5F5> 04_Apps
+  -----
+  <b>Data Flow:</b>
+  Solid arrow = CREATE/INSERT/MERGE
+  Dashed arrow = WIP / Incomplete
+  -----
+  All relationships are
+  implicit (BigQuery does
+  not enforce FK constraints)
+endlegend
+
+@enduml
