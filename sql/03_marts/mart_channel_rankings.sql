@@ -15,9 +15,6 @@
     - 30 Day Views per Video: 30 Day catalog yield.
     - 30 Day Views per Subscriber: 30 Day Audience Activation.
 ==================================================================== */
-DECLARE start_date DATE;
-DECLARE end_date DATE;
-
 -- Join the metric values table with the cohorts before trying to do the ranking
 WITH combined_metrics_cohorts AS (
   SELECT
@@ -61,5 +58,5 @@ SELECT
   percentile
 FROM combined_metrics_cohorts
 
-WHERE snapshot_date BETWEEN start_date AND end_date
+WHERE snapshot_date BETWEEN @start_date AND @end_date;
 

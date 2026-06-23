@@ -14,10 +14,6 @@
      @end_date    DATE  -- Last snapshot_date to process
      @window_days INT64 -- How many days to look back from each snapshot_date
 ==================================================================== */
-DECLARE start_date DATE;
-DECLARE end_date DATE;
-DECLARE window_days DATE;
-
 MERGE `{{project}}.{{dataset}}.mart_channel_metrics` AS T
 
 USING (

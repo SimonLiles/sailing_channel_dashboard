@@ -7,7 +7,6 @@
     used by ranking table so that new metrics are easily added to the ranking 
     logic.
 ==================================================================== */
-
 MERGE `{{project}}.{{dataset}}.mart_channel_metrics_values` AS T
 
 USING (
@@ -42,6 +41,8 @@ USING (
         CAST(sub_velocity_per_10k   AS FLOAT64) AS sub_velocity_per_10k
 
         FROM `{{project}}.{{dataset}}.fct_daily_performance`
+        
+        WHERE snapshot_date BETWEEN @start_date AND @end_date
     )
     
     UNPIVOT (
@@ -95,6 +96,8 @@ USING (
         CAST(views_per_sub_30d      AS FLOAT64) AS views_per_sub_30d
 
       FROM `{{project}}.{{dataset}}.mart_channel_metrics`
+      
+      WHERE snapshot_date BETWEEN @start_date AND @end_date
     )
     
     UNPIVOT (
@@ -116,7 +119,6 @@ USING (
   SELECT * FROM snapshot_metrics
   UNION ALL
   SELECT * FROM window_metrics
-
 ) AS S
 
 ON  T.channel_id    = S.channel_id

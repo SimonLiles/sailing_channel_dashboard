@@ -15,9 +15,6 @@
       it is forwarded here. 
     - Geography: New label thet likely will live in channel dimensions.
 ==================================================================== */
-DECLARE start_date DATE;
-DECLARE end_date DATE;
-
 MERGE `{{project}}.{{dataset}}.mart_channel_cohorts` AS T
 
 USING (
