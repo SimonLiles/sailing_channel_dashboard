@@ -54,3 +54,20 @@ CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.mart_channel_cohorts` (
     updated_at TIMESTAMP
 )
 PARTITION BY snapshot_date;
+
+-- 4. Channel Ranking Scores
+-- Composite key: snapshot_date + channel_id + metric_name + window_days + cohort_type + cohort_value
+-- Populated incrementally via MERGE in mart_channel_rankings.sql
+CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.mart_channel_rankings` (
+    snapshot_date DATE NOT NULL,
+    channel_id STRING NOT NULL,
+    metric_name STRING NOT NULL,
+    window_days INT64,
+    cohort_type STRING NOT NULL,
+    cohort_value STRING,
+    ranking INT64,
+    percentile INT64,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+)
+PARTITION BY snapshot_date;
