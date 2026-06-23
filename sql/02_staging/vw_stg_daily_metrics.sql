@@ -12,7 +12,7 @@ SELECT
     TRIM(title) AS channel_title,
     TRIM(description) AS channel_description,
     -- Convert string date '2023-10-27' into a real DATE type
-    SAFE.PARSE_DATETIME('%Y-%m-%dT%H:%M:%E2SZ', join_date) AS join_date,
+    SAFE.PARSE_DATE('%Y-%m-%d', SUBSTR(join_date, 1, 10)) AS join_date,
     -- Safely cast strings to Integers, returning NULL if they aren't numbers
     SAFE_CAST(view_count AS INT64) AS view_count,
     SAFE_CAST(subscriber_count AS INT64) AS subscriber_count,

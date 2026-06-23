@@ -42,7 +42,7 @@ USING (
 
         FROM `{{project}}.{{dataset}}.fct_daily_performance`
         
-        WHERE snapshot_date BETWEEN @start_date AND @end_date
+        WHERE date BETWEEN @start_date AND @end_date
     )
     
     UNPIVOT (
@@ -82,18 +82,18 @@ USING (
         channel_id,
         window_days,
 
-        CAST(total_views_30d        AS FLOAT64) AS total_views_30d,
-        CAST(total_subs_30d         AS FLOAT64) AS total_subs_30d,
-        CAST(new_videos_30d         AS FLOAT64) AS new_videos_30d,
+        CAST(total_views_window        AS FLOAT64) AS total_views_window,
+        CAST(total_subs_window         AS FLOAT64) AS total_subs_window,
+        CAST(new_videos_window         AS FLOAT64) AS new_videos_window,
         
         CAST(sub_conversion_rate    AS FLOAT64) AS sub_conversion_rate,
         
-        daily_new_subs_pct_growth,
+        CAST(subs_pct_growth            AS FLOAT64) AS subs_pct_growth,
 
         CAST(lifetime_views_per_vid AS FLOAT64) AS lifetime_views_per_vid,
-        CAST(views_per_vid_30d      AS FLOAT64) AS views_per_vid_30d,
+        CAST(views_per_vid_window      AS FLOAT64) AS views_per_vid_window,
         
-        CAST(views_per_sub_30d      AS FLOAT64) AS views_per_sub_30d
+        CAST(views_per_sub_window      AS FLOAT64) AS views_per_sub_window
 
       FROM `{{project}}.{{dataset}}.mart_channel_metrics`
       
@@ -103,14 +103,14 @@ USING (
     UNPIVOT (
       metric_value
       FOR metric_name IN (
-        total_views_30d,
-        total_subs_30d,
-        new_videos_30d,
+        total_views_window,
+        total_subs_window,
+        new_videos_window,
         sub_conversion_rate,
-        daily_new_subs_pct_growth,
+        subs_pct_growth,
         lifetime_views_per_vid,
-        views_per_vid_30d,
-        views_per_sub_30d
+        views_per_vid_window,
+        views_per_sub_window
       )
     )
   )
@@ -123,7 +123,7 @@ USING (
 
 ON  T.channel_id    = S.channel_id
 AND T.snapshot_date = S.snapshot_date
-AND T.window_days   = S.window_days
+AND T.window_days   IS NOT DISTINCT FROM S.window_days
 AND T.metric_name   = S.metric_name
 
 WHEN MATCHED AND (

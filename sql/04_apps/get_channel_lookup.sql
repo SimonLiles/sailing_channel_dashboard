@@ -1,8 +1,8 @@
 /* ====================================================================
    Layer: 04_Apps
-   Purpose: Provide lookup table for all active hannels
-   Logic: 
-    - Retrieve identifying channel dimenions for active channels.
+    Purpose: Provide lookup table for all active channels
+    Logic: 
+     - Retrieve identifying channel dimensions for active channels.
 ==================================================================== */
 CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.channel_lookup` AS
 SELECT 
