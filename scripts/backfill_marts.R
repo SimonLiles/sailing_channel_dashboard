@@ -5,7 +5,7 @@
 #   Rscript scripts/backfill_marts.R \
 #     --start_date=2024-01-01 \
 #     --end_date=2024-12-31 \
-#     [--window_days=30] \
+#     [--window_days=30,90,180,365] \
 #     [--rebuild_fct=TRUE]
 
 require(bigrquery)
@@ -13,6 +13,7 @@ require(DBI)
 require(glue)
 require(here)
 
+source(here("scripts", "config.R"))
 source(here("scripts", "bq_config.R"))
 source(here("scripts", "run_sql.R"))
 
@@ -21,7 +22,12 @@ source(here("scripts", "run_sql.R"))
 # -------------------------------------------------------------------
 parse_args <- function() {
   args <- commandArgs(trailingOnly = TRUE)
-  defaults <- list(start_date = NULL, end_date = NULL, window_days = 30, rebuild_fct = TRUE)
+  defaults <- list(
+    start_date  = NULL,
+    end_date    = NULL,
+    window_days = config_get("window_days", 30),
+    rebuild_fct = TRUE
+  )
 
   parsed <- defaults
   for (arg in args) {
@@ -30,7 +36,7 @@ parse_args <- function() {
       key <- gsub("^--", "", kv[1])
       value <- kv[2]
       if (key == "rebuild_fct") value <- as.logical(value)
-      if (key == "window_days")  value <- as.integer(value)
+      if (key == "window_days") value <- as.integer(strsplit(value, ",")[[1]])
       parsed[[key]] <- value
     }
   }
@@ -39,7 +45,7 @@ parse_args <- function() {
     stop(
       "Both --start_date and --end_date are required.\n",
       "Usage: Rscript scripts/backfill_marts.R ",
-      "--start_date=2024-01-01 --end_date=2024-12-31 [--window_days=30] [--rebuild_fct=TRUE]"
+      "--start_date=2024-01-01 --end_date=2024-12-31 [--window_days=30,90,180,365] [--rebuild_fct=TRUE]"
     )
   }
 
@@ -66,7 +72,7 @@ backfill_mart_file <- function(connection, path, params = list(),
 cli <- parse_args()
 
 message(glue("Starting mart backfill: {cli$start_date} -> {cli$end_date}"))
-message(glue("  window_days  = {cli$window_days}"))
+message(glue("  window_days  = {paste(cli$window_days, collapse = ', ')}"))
 message(glue("  rebuild_fct  = {cli$rebuild_fct}"))
 
 # Authenticate (uses ETL_SERVICE_ACCOUNT_PATH env var when set)
@@ -91,16 +97,18 @@ if (cli$rebuild_fct) {
   run_sql_file(connection, here("sql", "03_marts", "fct_daily_performance.sql"))
 }
 
-# Step B – mart_channel_metrics (MERGE with window_days)
-backfill_mart_file(
-  connection,
-  here("sql", "03_marts", "mart_channel_metrics.sql"),
-  params = list(
-    start_date  = as.Date(cli$start_date),
-    end_date    = as.Date(cli$end_date),
-    window_days = cli$window_days
+# Step B – mart_channel_metrics (MERGE, once per window_days value)
+for (wd in cli$window_days) {
+  backfill_mart_file(
+    connection,
+    here("sql", "03_marts", "mart_channel_metrics.sql"),
+    params = list(
+      start_date  = as.Date(cli$start_date),
+      end_date    = as.Date(cli$end_date),
+      window_days = wd
+    )
   )
-)
+}
 
 # Step C – mart_channel_cohorts (MERGE, depends on mart_channel_metrics)
 backfill_mart_file(

@@ -1,3 +1,4 @@
-bq_project <- function() Sys.getenv("BQ_PROJECT", "yt-sailing-dashboard")
+source(here::here("scripts", "config.R"))
 
-bq_dataset <- function() Sys.getenv("BQ_DATASET", "yt_sailing_data")
+bq_project <- function() config_get("project", "yt-sailing-dashboard")
+bq_dataset <- function() config_get("dataset", "yt_sailing_data")
