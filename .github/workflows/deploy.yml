@@ -31,7 +31,7 @@ jobs:
           restore-keys: r-
 
       - name: Install R Dependencies
-        run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue'))"
+        run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue', 'yaml'))"
 
       - name: Run Unit Tests
         # YT_API_KEY injected here only for tests that need it,
