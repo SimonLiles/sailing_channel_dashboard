@@ -50,14 +50,16 @@ growth_benchmarks_server <- function(input, output, session) {
       filter(
         window_days == 30,
         cohort_type == "global",
-        cohort_value == "global"
+        cohort_value == "global",
+        metric_name != "lifetime_views_per_vid"
       ) %>%
       select(channel_id, metric_name, metric_value, ranking, percentile) %>%
       pivot_wider(
         id_cols = channel_id,
         names_from = metric_name,
         values_from = c(metric_value, ranking, percentile),
-        names_glue = "{metric_name}_{.value}"
+        names_glue = "{metric_name}_{.value}",
+        values_fn = first
       ) %>%
       inner_join(channel_info, by = "channel_id")
   })
@@ -74,7 +76,8 @@ growth_benchmarks_server <- function(input, output, session) {
         id_cols = channel_id,
         names_from = metric_name,
         values_from = c(metric_value, ranking, percentile),
-        names_glue = "{metric_name}_{.value}"
+        names_glue = "{metric_name}_{.value}",
+        values_fn = first
       ) %>%
       inner_join(channel_info, by = "channel_id")
   })
@@ -84,6 +87,12 @@ growth_benchmarks_server <- function(input, output, session) {
   channel_growth_metrics <- reactive({
     req(input$selected_channel_benchmarks)
     global_30d() %>%
+      filter(channel_id == input$selected_channel_benchmarks)
+  })
+
+  channel_lifetime_metrics <- reactive({
+    req(input$selected_channel_benchmarks)
+    global_lifetime() %>%
       filter(channel_id == input$selected_channel_benchmarks)
   })
 
@@ -108,8 +117,8 @@ growth_benchmarks_server <- function(input, output, session) {
         ),
         value_box(
           title = "7 Day Average Views",
-          value = channel_growth_metrics()$views_moving_avg_7d_metric_value,
-          h5(paste0(channel_growth_metrics()$views_moving_avg_7d_percentile, "th percentile")),
+          value = channel_lifetime_metrics()$views_moving_avg_7d_metric_value,
+          h5(paste0(channel_lifetime_metrics()$views_moving_avg_7d_percentile, "th percentile")),
           fill = FALSE
         ),
         value_box(
@@ -197,9 +206,9 @@ growth_benchmarks_server <- function(input, output, session) {
         geom_smooth(method = "lm") +
         annotate(
           geom = "point",
-          x = channel_growth_metrics()$subscriber_count,
-          y = channel_growth_metrics()$lifetime_views_per_vid_metric_value,
-          text = channel_growth_metrics()$channel_handle,
+          x = channel_lifetime_metrics()$subscriber_count,
+          y = channel_lifetime_metrics()$lifetime_views_per_vid_metric_value,
+          text = channel_lifetime_metrics()$channel_handle,
           color = "red", size = 3, shape = "star"
         ) +
         scale_x_log10(labels = label_number()) +
