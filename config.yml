@@ -17,3 +17,9 @@ window_days:
   - 90
   - 180
   - 365
+
+# Google Cloud Storage bucket and prefix for RDS cache files.
+# The ETL uploads cache RDS files here; the Shiny app reads them at startup
+# and polls for updates.
+gcs_bucket: yt-sailing-dashboard-cache
+gcs_cache_prefix: cache-dev

@@ -7,29 +7,30 @@ server <- function(input, output, session) {
     session = session,
     checkFunc = function() {
       message("Checking GCS cache freshness...")
-      gcs_cache_last_modified("cache/global_summary.rds")
+      gcs_cache_last_modified(paste0(config_get("gcs_cache_prefix", "cache"), "/global_summary.rds"))
     },
     valueFunc = function() {
       message("Fresh cache detected — reloading from GCS...")
       t <- system.time({
-        gs <- read_rds_from_gcs("cache/global_summary.rds")
-        lb <- read_rds_from_gcs("cache/leaderboard_30d.rds")
-        cl <- read_rds_from_gcs("cache/channel_lookup.rds")
+        gcs_prefix <- config_get("gcs_cache_prefix", "cache")
+        gs <- read_rds_from_gcs(paste0(gcs_prefix, "/global_summary.rds"))
+        lb <- read_rds_from_gcs(paste0(gcs_prefix, "/leaderboard_rankings.rds"))
+        ci <- read_rds_from_gcs(paste0(gcs_prefix, "/channel_info.rds"))
       })
       message(paste("GCS reload took", t["elapsed"], "seconds"))
       list(
-        global_summary_pull  = gs,
-        leaderboard_30d_pull = lb,
-        channel_lookup_pull  = cl
+        global_summary_pull       = gs,
+        leaderboard_rankings_pull = lb,
+        channel_info_pull         = ci
       )
     }
   )
 
   observe({
     app_data <- app_data_poll()
-    global_summary  <<- app_data$global_summary_pull
-    leaderboard_30d <<- app_data$leaderboard_30d_pull
-    channel_lookup  <<- app_data$channel_lookup_pull
+    global_summary       <<- app_data$global_summary_pull
+    leaderboard_rankings <<- app_data$leaderboard_rankings_pull
+    channel_info         <<- app_data$channel_info_pull
     message("Global variables refreshed in background.")
   })
 

@@ -35,7 +35,7 @@ creator_explorer_server <- function(input, output, session) {
     session,
     "selected_channel",
     selected = character(0),
-    choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title),
+    choices = setNames(channel_info$channel_id, channel_info$channel_title),
     server = TRUE
   )
 

@@ -1,3 +1,12 @@
+# ====================================================================
+#  Growth Benchmarks
+#  Compare a selected channel's performance against all channels in
+#  the global 30-day cohort.
+#
+#  Data: leaderboard_rankings (global, long format)
+#        channel_info         (global, one row per channel)
+# ====================================================================
+
 # UI ----
 growth_benchmarks_ui <- nav_panel(
   "Growth Benchmarks",
@@ -30,15 +39,55 @@ growth_benchmarks_server <- function(input, output, session) {
     session,
     "selected_channel_benchmarks",
     selected = character(0),
-    choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title),
+    choices = setNames(channel_info$channel_id, channel_info$channel_title),
     server = TRUE
   )
 
+  # ---- Wide datasets for all channels (global, 30-day) ----
+
+  global_30d <- reactive({
+    leaderboard_rankings %>%
+      filter(
+        window_days == 30,
+        cohort_type == "global",
+        cohort_value == "global"
+      ) %>%
+      select(channel_id, metric_name, metric_value, ranking, percentile) %>%
+      pivot_wider(
+        id_cols = channel_id,
+        names_from = metric_name,
+        values_from = c(metric_value, ranking, percentile),
+        names_glue = "{metric_name}_{.value}"
+      ) %>%
+      inner_join(channel_info, by = "channel_id")
+  })
+
+  global_lifetime <- reactive({
+    leaderboard_rankings %>%
+      filter(
+        is.na(window_days),
+        cohort_type == "global",
+        cohort_value == "global"
+      ) %>%
+      select(channel_id, metric_name, metric_value, ranking, percentile) %>%
+      pivot_wider(
+        id_cols = channel_id,
+        names_from = metric_name,
+        values_from = c(metric_value, ranking, percentile),
+        names_glue = "{metric_name}_{.value}"
+      ) %>%
+      inner_join(channel_info, by = "channel_id")
+  })
+
+  # ---- Selected channel data ----
+
   channel_growth_metrics <- reactive({
     req(input$selected_channel_benchmarks)
-    leaderboard_30d %>%
+    global_30d() %>%
       filter(channel_id == input$selected_channel_benchmarks)
   })
+
+  # ---- Output UI ----
 
   output$growth_metrics_ui <- renderUI({
     req(input$selected_channel_benchmarks)
@@ -53,33 +102,33 @@ growth_benchmarks_server <- function(input, output, session) {
         fill = FALSE,
         value_box(
           title = "Views past 30 days",
-          value = channel_growth_metrics()$total_views_30d,
-          h5(paste0(channel_growth_metrics()$view_percentile, "th percentile")),
+          value = channel_growth_metrics()$total_views_window_metric_value,
+          h5(paste0(channel_growth_metrics()$total_views_window_percentile, "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "7 Day Average Views",
-          value = channel_growth_metrics()$views_moving_avg_7d,
-          h5(paste0(channel_growth_metrics()$view_7d_avg_percentile, "th percentile")),
+          value = channel_growth_metrics()$views_moving_avg_7d_metric_value,
+          h5(paste0(channel_growth_metrics()$views_moving_avg_7d_percentile, "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "New Subscribers past 30 days",
-          value = channel_growth_metrics()$daily_new_subs,
-          h5(paste0(channel_growth_metrics()$daily_sub_percentile, "th percentile")),
+          value = channel_growth_metrics()$total_subs_window_metric_value,
+          h5(paste0(channel_growth_metrics()$total_subs_window_percentile, "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "Catalog Yield",
-          value = channel_growth_metrics()$views_per_vid_30d,
-          h5(paste0(channel_growth_metrics()$views_per_vid_30d_percentile, "th percentile")),
+          value = channel_growth_metrics()$views_per_vid_window_metric_value,
+          h5(paste0(channel_growth_metrics()$views_per_vid_window_percentile, "th percentile")),
           p("Views per Video past 30 days"),
           fill = FALSE
         ),
         value_box(
           title = "Audience Activation",
-          value = channel_growth_metrics()$views_per_sub_30d,
-          h5(paste0(channel_growth_metrics()$views_per_sub_30d_percentile, "th percentile")),
+          value = channel_growth_metrics()$views_per_sub_window_metric_value,
+          h5(paste0(channel_growth_metrics()$views_per_sub_window_percentile, "th percentile")),
           p("Views per Subscriber past 30 days"),
           fill = FALSE
         ),
@@ -138,17 +187,18 @@ growth_benchmarks_server <- function(input, output, session) {
     )
   })
 
-  # Growth metric plots ----
+  # ---- Growth metric plots ----
+
   output$algorithm_performance_chart <- renderPlotly(
     ggplotly(
       tooltip = "text",
-      ggplot(leaderboard_30d, aes(x = subscriber_count, y = lifetime_views_per_vid)) +
+      ggplot(global_lifetime(), aes(x = subscriber_count, y = lifetime_views_per_vid_metric_value)) +
         geom_point(alpha = 1, color = "black", aes(text = channel_handle)) +
         geom_smooth(method = "lm") +
         annotate(
           geom = "point",
           x = channel_growth_metrics()$subscriber_count,
-          y = channel_growth_metrics()$lifetime_views_per_vid,
+          y = channel_growth_metrics()$lifetime_views_per_vid_metric_value,
           text = channel_growth_metrics()$channel_handle,
           color = "red", size = 3, shape = "star"
         ) +
@@ -163,13 +213,13 @@ growth_benchmarks_server <- function(input, output, session) {
   output$algorithm_performance_30d_chart <- renderPlotly(
     ggplotly(
       tooltip = "text",
-      ggplot(leaderboard_30d, aes(x = subscriber_count, y = views_per_vid_30d)) +
+      ggplot(global_30d(), aes(x = subscriber_count, y = views_per_vid_window_metric_value)) +
         geom_point(alpha = 1, color = "black", aes(text = channel_handle)) +
         geom_smooth(method = "lm") +
         annotate(
           geom = "point",
           x = channel_growth_metrics()$subscriber_count,
-          y = channel_growth_metrics()$views_per_vid_30d,
+          y = channel_growth_metrics()$views_per_vid_window_metric_value,
           text = channel_growth_metrics()$channel_handle,
           color = "red", size = 3, shape = "star"
         ) +
@@ -184,13 +234,13 @@ growth_benchmarks_server <- function(input, output, session) {
   output$audience_activation_30d_chart <- renderPlotly(
     ggplotly(
       tooltip = "text",
-      ggplot(leaderboard_30d, aes(x = subscriber_count, y = views_per_sub_30d)) +
+      ggplot(global_30d(), aes(x = subscriber_count, y = views_per_sub_window_metric_value)) +
         geom_point(alpha = 1, color = "black", aes(text = channel_handle)) +
         geom_smooth(method = "lm") +
         annotate(
           geom = "point",
           x = channel_growth_metrics()$subscriber_count,
-          y = channel_growth_metrics()$views_per_sub_30d,
+          y = channel_growth_metrics()$views_per_sub_window_metric_value,
           text = channel_growth_metrics()$channel_handle,
           color = "red", size = 3, shape = "star"
         ) +
