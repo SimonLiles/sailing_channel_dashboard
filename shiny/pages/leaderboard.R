@@ -127,12 +127,16 @@ leaderboard_server <- function(input, output, session) {
     }
 
     data <- leaderboard_rankings %>%
-      filter(
-        cohort_type == input$leaderboard_cohort,
-        cohort_value == if (input$leaderboard_cohort == "global") "global"
-                        else input$leaderboard_bucket,
-        metric_name %in% selected_metrics
-      )
+      filter(cohort_type == input$leaderboard_cohort)
+
+    if (input$leaderboard_cohort == "global") {
+      data <- data %>% filter(cohort_value == "global")
+    } else {
+      req(input$leaderboard_bucket)
+      data <- data %>% filter(cohort_value == input$leaderboard_bucket)
+    }
+
+    data <- data %>% filter(metric_name %in% selected_metrics)
 
     if (is.na(wv)) {
       data <- data %>% filter(is.na(window_days))
@@ -165,7 +169,10 @@ leaderboard_server <- function(input, output, session) {
       inner_join(channel_info, by = "channel_id")
 
     rank_col <- paste0(input$leaderboard_rank_by, "_ranking")
-    wide %>% arrange(.data[[rank_col]])
+    if (rank_col %in% names(wide)) {
+      wide <- wide %>% arrange(.data[[rank_col]])
+    }
+    wide
   })
 
   # ---- Reactable ----
@@ -224,7 +231,9 @@ leaderboard_server <- function(input, output, session) {
     req(leaderboard_wide())
 
     data <- leaderboard_wide()
-    display_metrics <- intersect(input$leaderboard_display_metrics, names(data))
+    display_metrics <- input$leaderboard_display_metrics[
+      paste0(input$leaderboard_display_metrics, "_metric_value") %in% names(data)
+    ]
     rank_by <- input$leaderboard_rank_by
 
     col_defs <- build_col_defs(rank_by, display_metrics, data)
