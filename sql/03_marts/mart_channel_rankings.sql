@@ -67,7 +67,8 @@ USING (
         cohort_type, 
         cohort_value,
         
-        metric_name
+        metric_name,
+        window_days
       ORDER BY metric_value DESC
     ) AS ranking,
     
@@ -79,7 +80,8 @@ USING (
         cohort_type, 
         cohort_value,
         
-        metric_name
+        metric_name,
+        window_days
       ORDER BY metric_value DESC
       )) * 100
     ) AS INT64) AS percentile
