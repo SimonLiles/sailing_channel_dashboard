@@ -25,6 +25,7 @@ source(here("scripts", "run_sql.R"))
 
 # Load utility functions
 source(paste("utils", "format_youtube_style.R", sep = "/"))
+source(paste("utils", "format_dashboard_value.R", sep = "/"))
 source(paste("utils", "read_rds_from_gcs.R", sep = "/"))
 source(paste("utils", "gcs_cache_last_modified.R", sep = "/"))
 source(paste("utils", "run_channel_query.R", sep = "/"))

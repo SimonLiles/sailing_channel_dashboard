@@ -9,21 +9,21 @@
 
 # Metric metadata
 metric_meta <- tibble::tribble(
-  ~metric_name,             ~display_label,       ~window_group, ~default_show,
-  "total_views_window",     "Views",              "windowed",    TRUE,
-  "total_subs_window",      "New Subscribers",    "windowed",    TRUE,
-  "new_videos_window",      "New Videos",         "windowed",    FALSE,
-  "sub_conversion_rate",    "Sub Conv. Rate",     "windowed",    FALSE,
-  "subs_pct_growth",        "Sub Growth %",       "windowed",    TRUE,
-  "views_per_vid_window",   "Views/Video",        "windowed",    TRUE,
-  "views_per_sub_window",   "Views/Sub",          "windowed",    FALSE,
-  "views_moving_avg_7d",    "7D Avg Views",       "snapshot",    TRUE,
-  "daily_new_subs",         "Daily New Subs",     "snapshot",    FALSE,
-  "subscriber_count",       "Subscribers",        "lifetime",    TRUE,
-  "view_count",             "Total Views",        "lifetime",    TRUE,
-  "video_count",            "Videos",             "lifetime",    FALSE,
-  "lifetime_views_per_vid", "Views/Video (All)",  "lifetime",    FALSE,
-  "lifetime_views_per_sub", "Views/Sub (All)",    "lifetime",    FALSE
+  ~metric_name,             ~display_label,       ~window_group, ~default_show, ~format_type,
+  "total_views_window",     "Views",              "windowed",    TRUE,          "integer",
+  "total_subs_window",      "New Subscribers",    "windowed",    TRUE,          "integer",
+  "new_videos_window",      "New Videos",         "windowed",    FALSE,         "integer",
+  "sub_conversion_rate",    "Sub Conv. Rate",     "windowed",    FALSE,         "decimal",
+  "subs_pct_growth",        "Sub Growth %",       "windowed",    TRUE,          "decimal",
+  "views_per_vid_window",   "Views/Video",        "windowed",    TRUE,          "decimal",
+  "views_per_sub_window",   "Views/Sub",          "windowed",    FALSE,         "decimal",
+  "views_moving_avg_7d",    "7D Avg Views",       "snapshot",    TRUE,          "decimal",
+  "daily_new_subs",         "Daily New Subs",     "snapshot",    FALSE,         "integer",
+  "subscriber_count",       "Subscribers",        "lifetime",    TRUE,          "integer",
+  "view_count",             "Total Views",        "lifetime",    TRUE,          "integer",
+  "video_count",            "Videos",             "lifetime",    FALSE,         "integer",
+  "lifetime_views_per_vid", "Views/Video (All)",  "lifetime",    FALSE,         "decimal",
+  "lifetime_views_per_sub", "Views/Sub (All)",    "lifetime",    FALSE,         "decimal"
 )
 
 # UI ----
@@ -215,10 +215,12 @@ leaderboard_server <- function(input, output, session) {
     for (m in display_metrics) {
       display_name <- metric_meta$display_label[metric_meta$metric_name == m]
       if (length(display_name) == 0) display_name <- m
+      fmt_type <- metric_meta$format_type[metric_meta$metric_name == m]
+      digits <- if (length(fmt_type) > 0 && fmt_type == "integer") 0 else 2
       value_col <- paste0(m, "_metric_value")
       metric_defs[[value_col]] <- colDef(
         name = display_name, align = "right",
-        format = colFormat(separators = TRUE)
+        format = colFormat(separators = TRUE, digits = digits)
       )
     }
 

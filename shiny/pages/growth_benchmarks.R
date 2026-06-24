@@ -111,32 +111,32 @@ growth_benchmarks_server <- function(input, output, session) {
         fill = FALSE,
         value_box(
           title = "Views past 30 days",
-          value = channel_growth_metrics()$total_views_window_metric_value,
+          value = formatC(channel_growth_metrics()$total_views_window_metric_value, format = "d", big.mark = ","),
           h5(paste0(channel_growth_metrics()$total_views_window_percentile, "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "7 Day Average Views",
-          value = channel_lifetime_metrics()$views_moving_avg_7d_metric_value,
+          value = format_dashboard_value(channel_lifetime_metrics()$views_moving_avg_7d_metric_value),
           h5(paste0(channel_lifetime_metrics()$views_moving_avg_7d_percentile, "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "New Subscribers past 30 days",
-          value = channel_growth_metrics()$total_subs_window_metric_value,
+          value = formatC(channel_growth_metrics()$total_subs_window_metric_value, format = "d", big.mark = ","),
           h5(paste0(channel_growth_metrics()$total_subs_window_percentile, "th percentile")),
           fill = FALSE
         ),
         value_box(
           title = "Catalog Yield",
-          value = channel_growth_metrics()$views_per_vid_window_metric_value,
+          value = format_dashboard_value(channel_growth_metrics()$views_per_vid_window_metric_value),
           h5(paste0(channel_growth_metrics()$views_per_vid_window_percentile, "th percentile")),
           p("Views per Video past 30 days"),
           fill = FALSE
         ),
         value_box(
           title = "Audience Activation",
-          value = channel_growth_metrics()$views_per_sub_window_metric_value,
+          value = format_dashboard_value(channel_growth_metrics()$views_per_sub_window_metric_value),
           h5(paste0(channel_growth_metrics()$views_per_sub_window_percentile, "th percentile")),
           p("Views per Subscriber past 30 days"),
           fill = FALSE

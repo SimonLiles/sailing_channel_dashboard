@@ -256,9 +256,8 @@ creator_explorer_server <- function(input, output, session) {
           ),
           value_box(
             title = "7 Day Average Views",
-            value = format(
+            value = format_dashboard_value(
               tail(channel_history()$views_moving_avg_7d, n = 1),
-              big.mark = ",",
             ),
             showcase = plotlyOutput("views_7d_avg_ts_plot"),
             fill = FALSE,
