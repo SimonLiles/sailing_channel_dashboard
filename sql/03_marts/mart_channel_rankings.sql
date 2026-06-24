@@ -71,7 +71,7 @@ USING (
       ORDER BY metric_value DESC
     ) AS ranking,
     
-    ROUND(
+    CAST(ROUND(
       (1 - PERCENT_RANK() OVER (
         PARTITION BY
         snapshot_date,
@@ -82,7 +82,7 @@ USING (
         metric_name
       ORDER BY metric_value DESC
       )) * 100
-    ) AS percentile
+    ) AS INT64) AS percentile
 
   FROM combined_metrics_cohorts
 
