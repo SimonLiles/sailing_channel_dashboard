@@ -51,8 +51,8 @@ leaderboard_ui <- nav_panel(
       selectInput("leaderboard_rank_by", "Rank by:", choices = NULL)
     ),
     column(8,
-      checkboxGroupInput("leaderboard_display_metrics",
-        "Display metrics:", choices = NULL, inline = TRUE)
+      selectInput("leaderboard_display_metrics", "Display metrics:",
+        choices = NULL, multiple = TRUE)
     )
   ),
 
@@ -86,9 +86,9 @@ leaderboard_server <- function(input, output, session) {
       choices = choices, selected = default_rank)
 
     default_display <- m %>% filter(default_show) %>% pull(metric_name)
-    updateCheckboxGroupInput(session, "leaderboard_display_metrics",
+    updateSelectInput(session, "leaderboard_display_metrics",
       label = "Display metrics:",
-      choices = choices, selected = default_display, inline = TRUE)
+      choices = choices, selected = default_display)
   })
 
   # ---- Cohort bucket UI ----
