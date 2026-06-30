@@ -18,13 +18,19 @@ flowchart LR
     subgraph Layer_03_Marts ["03_Marts (Business Logic)"]
         direction TB
         FctPerf[(fct_daily_performance)]
+        MartMetrics[(mart_channel_metrics\n*Rolling Windows*)]
+        MartValues[(mart_channel_metrics_values\n*Long-Format*)]
+        MartCohorts[(mart_channel_cohorts\n*Buckets*)]
+        MartRanks[(mart_channel_rankings\n*Rankings*)]
     end
 
     subgraph Layer_04_Apps ["04_Apps (Dashboard UI Serving)"]
         direction TB
-        App1([Global Summary])
-        App2([30-Day Leaderboard])
-        App3([Channel History & Trend])
+        App1[(channel_lookup)]
+        App2[(global_summary)]
+        App3[(leaderboard_30d)]
+        App4[(leaderboard)]
+        App5([Channel Profile, Trend & History])
     end
 
     %% Define Data Flow Connections
@@ -37,11 +43,22 @@ flowchart LR
     
     Hist -->|Window Functions & Lags| FctPerf
     
-    FctPerf -->|Aggregate| App1
-    FctPerf -->|Join w/ Dims| App2
-    FctPerf -->|Filter by @id| App3
-    Dim --> App2
-    Dim -->|Filter by @id| App3
+    FctPerf -->|Self-Join, Rolling Windows| MartMetrics
+    FctPerf -->|UNPIVOT Snapshot Metrics| MartValues
+    MartMetrics -->|UNPIVOT Window Metrics| MartValues
+    MartMetrics -->|Bucket Channels| MartCohorts
+    MartValues -->|INNER JOIN| MartRanks
+    MartCohorts -->|INNER JOIN| MartRanks
+
+    Dim -->|Active Channels| App1
+    FctPerf -->|Latest Lifetime Stats| App1
+    FctPerf -->|Daily Aggregates| App2
+    FctPerf -->|Join w/ Dims, 30d Window| App3
+    Dim -->|Channel Metadata| App3
+    MartRanks -->|SELECT Latest Snapshot| App4
+    MartValues -->|LEFT JOIN Metric Values| App4
+    Dim -->|Filter by @id| App5
+    FctPerf -->|Filter by @id| App5
 
     %% Styling
     classDef transient stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
@@ -49,5 +66,5 @@ flowchart LR
     classDef view stroke:#007bff,stroke-width:2px;
     
     class Ingest transient;
-    class Dim,Hist,FctPerf permanent;
+    class Dim,Hist,FctPerf,MartMetrics,MartValues,MartCohorts,MartRanks,App1,App2,App3,App4 permanent;
     class StgView view;

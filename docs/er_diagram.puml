@@ -124,7 +124,7 @@ package "03_Marts - Presentation" {
   entity "mart_channel_metrics_values" as MART03 {
     + snapshot_date: DATE [NOT NULL]
     + channel_id: STRING [NOT NULL]
-    + window_days: INT64
+    + window_days: INT64 [nullable; part of logical key]
     + metric_name: STRING [NOT NULL]
     --
     metric_value: FLOAT64
@@ -149,9 +149,9 @@ package "03_Marts - Presentation" {
     + snapshot_date: DATE [NOT NULL]
     + channel_id: STRING [NOT NULL]
     + metric_name: STRING [NOT NULL]
-    + window_days: INT64
+    + window_days: INT64 [nullable; part of logical key]
     + cohort_type: STRING [NOT NULL]
-    + cohort_value: STRING
+    + cohort_value: STRING [nullable; part of logical key]
     --
     ranking: INT64
     percentile: INT64
@@ -169,6 +169,9 @@ package "04_Apps - Dashboard" {
     channel_title: STRING
     channel_handle: STRING
     profile_pic: STRING
+    subscriber_count: INT64
+    view_count: INT64
+    video_count: INT64
   }
 
   entity "global_summary" as APP02 {
@@ -202,7 +205,38 @@ package "04_Apps - Dashboard" {
     lifetime_views_per_vid: FLOAT64
     views_per_vid_30d: FLOAT64
     views_per_sub_30d: FLOAT64
-    -- plus ranking columns --
+    sub_rank: INT64
+    sub_percentile: INT64
+    lifetime_view_rank: INT64
+    lifetime_view_percentile: INT64
+    video_count_rank: INT64
+    video_count_percentile: INT64
+    view_rank: INT64
+    view_percentile: INT64
+    view_7d_avg_rank: INT64
+    view_7d_avg_percentile: INT64
+    views_per_vid_30d_rank: INT64
+    views_per_vid_30d_percentile: INT64
+    views_per_sub_30d_rank: INT64
+    views_per_sub_30d_percentile: INT64
+    daily_sub_rank: INT64
+    daily_sub_percentile: INT64
+    daily_sub_growth_pct_rank: INT64
+    daily_sub_growth_pct_percentile: INT64
+    new_videos_30d_rank: INT64
+    new_videos_30d_percentile: INT64
+  }
+
+  entity "leaderboard" as APP04 {
+    + channel_id: STRING
+    + metric_name: STRING
+    + window_days: INT64 [nullable]
+    + cohort_type: STRING
+    + cohort_value: STRING [nullable]
+    --
+    metric_value: FLOAT64
+    ranking: INT64
+    percentile: INT64
   }
 }
 
@@ -224,10 +258,10 @@ RAW03 --> MART01 : "SELECT (window functions)"
 MART01 -right-> MART02 : "SELECT (30d/90d windows)"
 
 ' Mart: mart_channel_metrics → mart_channel_metrics_values (unpivot)
-MART02 --> MART03 : "MERGE (unpivot metrics)"
+MART02 --> MART03 : "MERGE (unpivot window metrics)"
 
 ' Fact: fct_daily_performance → mart_channel_metrics_values (unpivot)
-MART01 --> MART03 : "MERGE (unpivot metrics)"
+MART01 --> MART03 : "MERGE (unpivot snapshot metrics)"
 
 ' Mart: mart_channel_metrics → mart_channel_cohorts
 MART02 --> MART04 : "MERGE (bucket channels)"
@@ -241,6 +275,9 @@ MART04 --> MART05 : "INNER JOIN"
 ' App: channel_dimensions → channel_lookup
 RAW02 --> APP01 : "SELECT (active channels)"
 
+' App: fct_daily_performance → channel_lookup
+MART01 --> APP01 : "latest lifetime stats"
+
 ' App: fct_daily_performance → global_summary
 MART01 --> APP02 : "SELECT (daily aggregates)"
 
@@ -249,6 +286,12 @@ MART01 --> APP03 : "SELECT (JOIN, 30d window)"
 
 ' App: channel_dimensions → leaderboard_30d
 RAW02 --> APP03 : "INNER JOIN"
+
+' App: mart_channel_rankings → leaderboard
+MART05 --> APP04 : "SELECT (latest snapshot)"
+
+' App: mart_channel_metrics_values → leaderboard
+MART03 --> APP04 : "LEFT JOIN metric values"
 
 ' ====== LEGEND ======
 legend right

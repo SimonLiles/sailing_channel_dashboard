@@ -1,8 +1,23 @@
 %%{init: {'theme': 'dark'}}%%
 
 erDiagram
-    %% Entities and Attributes
-    CHANNEL_DIMENSIONS {
+    %% ====== 01_RAW - Landing Zone ======
+
+    raw_daily_ingest {
+        STRING channel_id
+        STRING channel_handle
+        STRING title
+        STRING description
+        STRING join_date
+        STRING view_count
+        STRING subscriber_count
+        STRING video_count
+        STRING is_sub_count_hidden
+        STRING channel_keywords
+        STRING profile_pic
+    }
+
+    channel_dimensions {
         STRING channel_id PK
         STRING channel_handle "NOT NULL"
         BOOLEAN is_active "DEFAULT TRUE"
@@ -12,28 +27,49 @@ erDiagram
         BOOLEAN is_sub_count_hidden
         STRING channel_keywords
         STRING profile_pic
+        STRING status
+        STRING type
         STRING added_by
         TIMESTAMP created_at
         TIMESTAMP updated_at
     }
 
-    DAILY_METRICS_HISTORY {
-        STRING channel_id PK, FK
-        DATE date PK
+    daily_metrics_history {
+        STRING channel_id PK
+        DATE date PK "partition key"
         INT64 view_count
         INT64 subscriber_count
         INT64 video_count
         TIMESTAMP created_at
     }
 
-    FCT_DAILY_PERFORMANCE {
-        STRING channel_id PK, FK
+    %% ====== 02_STAGING ======
+
+    vw_stg_daily_metrics {
+        STRING channel_id
+        STRING channel_handle
+        STRING channel_title
+        STRING channel_description
+        DATE join_date
+        INT64 view_count
+        INT64 subscriber_count
+        INT64 video_count
+        BOOLEAN is_sub_count_hidden
+        STRING channel_keywords
+        STRING profile_pic
+    }
+
+    %% ====== 03_MARTS ======
+
+    fct_daily_performance {
+        STRING channel_id PK
         DATE date PK
         INT64 view_count
         INT64 video_count
         INT64 subscriber_count
         INT64 daily_new_views
         INT64 daily_new_subs
+        INT64 daily_new_videos
         FLOAT64 lifetime_views_per_vid
         FLOAT64 lifetime_views_per_sub
         FLOAT64 lifetime_subs_per_vid
@@ -41,6 +77,148 @@ erDiagram
         FLOAT64 sub_velocity_per_10k
     }
 
-    %% Relationships
-    CHANNEL_DIMENSIONS ||--o{ DAILY_METRICS_HISTORY : "tracks daily metrics for"
-    CHANNEL_DIMENSIONS ||--o{ FCT_DAILY_PERFORMANCE : "calculates performance for"
+    mart_channel_metrics {
+        STRING channel_id PK
+        DATE snapshot_date PK "partition key"
+        INT64 window_days PK
+        INT64 subscriber_count
+        INT64 view_count
+        INT64 video_count
+        INT64 total_views_window
+        INT64 total_subs_window
+        INT64 new_videos_window
+        FLOAT64 views_moving_avg_7d
+        FLOAT64 sub_conversion_rate
+        INT64 daily_new_subs
+        FLOAT64 subs_pct_growth
+        FLOAT64 lifetime_views_per_vid
+        FLOAT64 views_per_vid_window
+        FLOAT64 views_per_sub_window
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    mart_channel_metrics_values {
+        DATE snapshot_date PK "partition key"
+        STRING channel_id PK
+        INT64 window_days "nullable; part of logical key"
+        STRING metric_name PK
+        FLOAT64 metric_value
+        TIMESTAMP updated_at
+    }
+
+    mart_channel_cohorts {
+        DATE snapshot_date PK "partition key"
+        STRING channel_id PK
+        STRING cohort_type PK
+        STRING cohort_value
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    mart_channel_rankings {
+        DATE snapshot_date PK "partition key"
+        STRING channel_id PK
+        STRING metric_name PK
+        INT64 window_days "nullable; part of logical key"
+        STRING cohort_type PK
+        STRING cohort_value "nullable; part of logical key"
+        INT64 ranking
+        INT64 percentile
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    %% ====== 04_APPS ======
+
+    channel_lookup {
+        STRING channel_id PK
+        STRING channel_title
+        STRING channel_handle
+        STRING profile_pic
+        INT64 subscriber_count
+        INT64 view_count
+        INT64 video_count
+    }
+
+    global_summary {
+        DATE date PK
+        INT64 latest_views
+        INT64 latest_subs
+        INT64 active_channels
+        FLOAT64 avg_daily_views
+        FLOAT64 avg_daily_subs
+        FLOAT64 views_moving_avg_7d
+        FLOAT64 view_growth_pct
+    }
+
+    leaderboard_30d {
+        STRING channel_id PK
+        STRING channel_title
+        STRING channel_handle
+        STRING profile_pic
+        INT64 subscriber_count
+        INT64 view_count
+        INT64 video_count
+        INT64 total_views_30d
+        INT64 total_subs_30d
+        INT64 new_videos_30d
+        FLOAT64 sub_conversion_rate
+        FLOAT64 views_moving_avg_7d
+        INT64 daily_new_subs
+        FLOAT64 daily_new_subs_pct_growth
+        FLOAT64 lifetime_views_per_vid
+        FLOAT64 views_per_vid_30d
+        FLOAT64 views_per_sub_30d
+        INT64 sub_rank
+        INT64 sub_percentile
+        INT64 lifetime_view_rank
+        INT64 lifetime_view_percentile
+        INT64 video_count_rank
+        INT64 video_count_percentile
+        INT64 view_rank
+        INT64 view_percentile
+        INT64 view_7d_avg_rank
+        INT64 view_7d_avg_percentile
+        INT64 views_per_vid_30d_rank
+        INT64 views_per_vid_30d_percentile
+        INT64 views_per_sub_30d_rank
+        INT64 views_per_sub_30d_percentile
+        INT64 daily_sub_rank
+        INT64 daily_sub_percentile
+        INT64 daily_sub_growth_pct_rank
+        INT64 daily_sub_growth_pct_percentile
+        INT64 new_videos_30d_rank
+        INT64 new_videos_30d_percentile
+    }
+
+    leaderboard {
+        STRING channel_id PK
+        STRING metric_name PK
+        INT64 window_days PK "nullable"
+        STRING cohort_type PK
+        STRING cohort_value PK "nullable"
+        FLOAT64 metric_value
+        INT64 ranking
+        INT64 percentile
+    }
+
+    %% ====== RELATIONSHIPS ======
+
+    raw_daily_ingest ||--o{ vw_stg_daily_metrics : "SELECT (with casts)"
+    vw_stg_daily_metrics ||--o{ channel_dimensions : "MERGE channel_id"
+    vw_stg_daily_metrics ||--o{ daily_metrics_history : "INSERT channel_id, date"
+    daily_metrics_history ||--o{ fct_daily_performance : "window functions & LAG"
+    fct_daily_performance ||--o{ mart_channel_metrics : "rolling 30d/90d windows"
+    fct_daily_performance ||--o{ mart_channel_metrics_values : "unpivot snapshot metrics"
+    mart_channel_metrics ||--o{ mart_channel_metrics_values : "unpivot window metrics"
+    mart_channel_metrics ||--o{ mart_channel_cohorts : "bucket channels"
+    mart_channel_metrics_values ||--o{ mart_channel_rankings : "metric values"
+    mart_channel_cohorts ||--o{ mart_channel_rankings : "cohort scoping"
+    channel_dimensions ||--o{ channel_lookup : "active channels"
+    fct_daily_performance ||--o{ channel_lookup : "latest lifetime stats"
+    fct_daily_performance ||--o{ global_summary : "daily aggregates"
+    fct_daily_performance ||--o{ leaderboard_30d : "30d window"
+    channel_dimensions ||--o{ leaderboard_30d : "channel metadata"
+    mart_channel_rankings ||--o{ leaderboard : "ranks & percentiles"
+    mart_channel_metrics_values ||--o{ leaderboard : "metric values"
