@@ -26,6 +26,13 @@ metric_meta <- tibble::tribble(
   "lifetime_views_per_sub", "Views/Sub (All)",    "lifetime",    FALSE,         "decimal"
 )
 
+# Cohort metadata
+cohort_meta <- tibble::tribble(
+  ~cohort_type,      ~display_label,
+  "global",           "Global",
+  "subscriber_count", "Subscriber Count"
+)
+
 # UI ----
 leaderboard_ui <- nav_panel(
   "The Leaderboard",
@@ -67,8 +74,11 @@ leaderboard_server <- function(input, output, session) {
   # Populate cohort choices once data is loaded
   observe({
     cohorts <- unique(leaderboard_rankings$cohort_type)
+    idx <- match(cohorts, cohort_meta$cohort_type)
+    labels <- ifelse(is.na(idx), cohorts, cohort_meta$display_label[idx])
+    choices <- setNames(cohorts, labels)
     updateSelectInput(session, "leaderboard_cohort",
-      choices = cohorts, selected = "global")
+      choices = choices, selected = "global")
   })
 
   # Populate rank_by and display_metrics when window changes
