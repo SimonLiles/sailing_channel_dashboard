@@ -32,7 +32,7 @@ run_sql_file <- function(connection, path, project = bq_project(), dataset = bq_
   if (is.null(params) || length(params) == 0) {
     rows_affected <- dbExecute(connection, query)
   } else {
-    rows_affected <- dbExecute(connection, query, parameters = params)
+    rows_affected <- dbExecute(connection, query, params = params)
   }
   message(glue("Success. Rows affected: {rows_affected}"))
 }

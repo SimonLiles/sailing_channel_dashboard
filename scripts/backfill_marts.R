@@ -61,7 +61,7 @@ backfill_mart_file <- function(connection, path, params = list(),
   message(glue("--- Executing: {path} ---"))
 
   query <- render_sql(path, project = project, dataset = dataset)
-  rows_affected <- dbExecute(connection, query, parameters = params)
+  rows_affected <- dbExecute(connection, query, params = params)
 
   message(glue("Success. Rows affected: {rows_affected}"))
 }
