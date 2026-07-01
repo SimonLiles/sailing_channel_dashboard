@@ -31,7 +31,7 @@ jobs:
           restore-keys: r-
 
       - name: Install R Dependencies
-        run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue'))"
+        run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue', 'yaml'))"
 
       - name: Run Unit Tests
         # YT_API_KEY injected here only for tests that need it,
@@ -96,9 +96,87 @@ jobs:
             -f shiny/Dockerfile.shiny .
           docker push ${{ env.SHINY_IMAGE_BASE }} --all-tags
 
-  # Job 3: Deploy both services only after both images are confirmed pushed
+  # Job 3: Run database schema migration against prod dataset
+  # Uses the already-built ETL image (contains all scripts/ and sql/ files).
+  # All steps use operations that the daily ETL already runs successfully
+  # (CREATE OR REPLACE, MERGE) — no CREATE PROCEDURE or CALL statements.
+  migrate:
+    needs: build-etl
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Pre-migration snapshot (safety net)
+        run: |
+          bq cp --force --clone \
+            ${{ env.PROJECT_ID }}:yt_sailing_data \
+            ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration || true
+          echo "Snapshot created. Rollback with:"
+          echo "  bq cp --force --clone \\"
+          echo "    ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration \\"
+          echo "    ${{ env.PROJECT_ID }}:yt_sailing_data"
+
+      - name: Run schema migration (DDL + apps layer)
+        run: |
+          gcloud run jobs execute yt-sailing-channel-etl-job \
+            --image ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+            --command "Rscript" \
+            --args "scripts/migrate_schema.R" \
+            --update-env-vars "DATASET=yt_sailing_data,ETL_ENV=production" \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --wait
+
+      - name: Backfill mart tables (full history)
+        run: |
+          gcloud run jobs execute yt-sailing-channel-etl-job \
+            --image ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+            --command "Rscript" \
+            --args "scripts/backfill_marts.R,--start_date=2024-01-01,--end_date=$(date +%Y-%m-%d),--rebuild_fct=FALSE" \
+            --update-env-vars "DATASET=yt_sailing_data,ETL_ENV=production" \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --wait
+
+      - name: Rebuild apps layer (post-backfill)
+        run: |
+          gcloud run jobs execute yt-sailing-channel-etl-job \
+            --image ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+            --command "Rscript" \
+            --args "scripts/migrate_schema.R" \
+            --update-env-vars "DATASET=yt_sailing_data,ETL_ENV=production" \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --wait
+
+      - name: Run initial ETL to populate GCS cache
+        # The ETL reads from the (now-migrated) prod dataset, rebuilds all mart
+        # tables for today, and uploads new-format cache files (leaderboard_rankings.rds,
+        # channel_info.rds) to GCS. This ensures the new Shiny has data on first boot.
+        run: |
+          gcloud run jobs execute yt-sailing-channel-etl-job \
+            --image ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+            --update-env-vars "DATASET=yt_sailing_data,ETL_ENV=production" \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --wait
+
+  # Job 4: Deploy both services only after migration is complete
   deploy:
-    needs: [build-etl, build-shiny]
+    needs: [migrate, build-shiny]
     runs-on: ubuntu-latest
     permissions:
       contents: read

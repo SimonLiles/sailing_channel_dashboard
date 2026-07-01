@@ -1,0 +1,25 @@
+# ====================================================================
+# Sailing Channel Dashboard — Configuration
+# ====================================================================
+
+# Google Cloud Platform project ID
+project: yt-sailing-dashboard
+
+# BigQuery dataset name
+dataset: yt_sailing_data
+
+# Rolling window sizes (in days) for mart aggregate metrics.
+# Each value produces a separate set of rows in mart_channel_metrics.
+# The backfill script loops over these, calling mart_channel_metrics.sql
+# once per window size.
+window_days:
+  - 30
+  - 90
+  - 180
+  - 365
+
+# Google Cloud Storage bucket and prefix for RDS cache files.
+# The ETL uploads cache RDS files here; the Shiny app reads them at startup
+# and polls for updates.
+gcs_bucket: yt-sailing-dashboard-cache
+gcs_cache_prefix: cache-dev

@@ -35,7 +35,7 @@ creator_explorer_server <- function(input, output, session) {
     session,
     "selected_channel",
     selected = character(0),
-    choices = setNames(channel_lookup$channel_id, channel_lookup$channel_title),
+    choices = setNames(channel_info$channel_id, channel_info$channel_title),
     server = TRUE
   )
 
@@ -256,9 +256,8 @@ creator_explorer_server <- function(input, output, session) {
           ),
           value_box(
             title = "7 Day Average Views",
-            value = format(
+            value = format_dashboard_value(
               tail(channel_history()$views_moving_avg_7d, n = 1),
-              big.mark = ",",
             ),
             showcase = plotlyOutput("views_7d_avg_ts_plot"),
             fill = FALSE,

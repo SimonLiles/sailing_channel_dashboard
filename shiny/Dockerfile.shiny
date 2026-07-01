@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/
 
 # Install R packages
-RUN R -e "install.packages(c('shinydashboard', 'shinydashboardPlus', 'shinythemes', 'reactable', 'bslib', 'shinycssloaders', 'httr', 'jsonlite', 'bigrquery', 'DBI', 'plotly', 'glue', 'here', 'ggthemes', 'scales', 'pool', 'bigrquerystorage', 'googleCloudStorageR', 'googleAuthR'), repos='https://cran.rstudio.com/')"
+RUN R -e "install.packages(c('shinydashboard', 'shinydashboardPlus', 'shinythemes', 'reactable', 'bslib', 'shinycssloaders', 'httr', 'jsonlite', 'bigrquery', 'DBI', 'plotly', 'glue', 'here', 'ggthemes', 'scales', 'pool', 'bigrquerystorage', 'googleCloudStorageR', 'googleAuthR', 'yaml'), repos='https://cran.rstudio.com/')"
 
 # Create a directory for your shared scripts
 RUN mkdir -p /srv/shiny-server/scripts
@@ -24,12 +24,15 @@ COPY shiny/global.R /srv/shiny-server/
 COPY shiny/ui.R /srv/shiny-server/
 COPY shiny/server.R /srv/shiny-server/
 COPY scripts/run_sql.R /srv/shiny-server/scripts/
+COPY scripts/bq_config.R /srv/shiny-server/scripts/
+COPY scripts/config.R /srv/shiny-server/scripts/
 COPY sql/ /srv/shiny-server/sql
 COPY shiny/www /srv/shiny-server/www
 
 COPY shiny/pages/ /srv/shiny-server/pages/
 COPY shiny/utils/ /srv/shiny-server/utils/
 
+COPY config.yml /srv/shiny-server/config.yml
 COPY .here /srv/shiny-server/.here
 
 # Set permissions for the shiny user

@@ -8,5 +8,5 @@ SELECT
   join_date,
   status,
   type
-FROM `yt-sailing-dashboard.yt_sailing_data.channel_dimensions`
+FROM `{{project}}.{{dataset}}.channel_dimensions`
 WHERE channel_id = @id;

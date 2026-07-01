@@ -11,6 +11,7 @@ require(here)
 require(googleCloudStorageR)
 
 #0. Get helper functions
+source(here("scripts", "bq_config.R"))
 source(here("scripts", "run_sql.R"))
 
 # 1. Connect to BigQuery ####
@@ -19,8 +20,8 @@ source(here("scripts", "run_sql.R"))
 service_account_path <- here(Sys.getenv("ETL_SERVICE_ACCOUNT_PATH"))
 bq_auth(path = service_account_path)
 
-project <- "yt-sailing-dashboard"
-dataset <- "yt_sailing_data"
+project <- bq_project()
+dataset <- bq_dataset()
 
 # Make connection
 connection <- dbConnect(
@@ -33,7 +34,7 @@ connection <- dbConnect(
 # 2. Get Target IDs ####
 message('Fetching channel list...')
 
-get_channel_ids_query <- read_sql(here("sql", "00_utils", "get_channel_ids.sql"))
+get_channel_ids_query <- render_sql(here("sql", "00_utils", "get_channel_ids.sql"))
 
 channels <- dbGetQuery(connection, get_channel_ids_query)
 
@@ -73,8 +74,11 @@ message("Raw data upload complete!")
 # 4. Clean data and calculate additional metrics
 
 row_check <- dbGetQuery(connection, 
-                        "SELECT COUNT(*) as cnt 
-                        FROM `yt-sailing-dashboard.yt_sailing_data.raw_daily_ingest`"
+                        glue("SELECT COUNT(*) as cnt 
+                        FROM `{{project}}.{{dataset}}.raw_daily_ingest`",
+                             project = project,
+                             dataset = dataset,
+                             .open = "{{", .close = "}}")
                         )$cnt
 
 if (row_check == 0) {
@@ -83,21 +87,53 @@ if (row_check == 0) {
   message(paste("Success: Proceeding with", row_check, "rows of fresh data."))
 }
 
-# Define the sequence of operations
+# Define the sequence of SQL operations (no params)
 sql_ops_sequence <- c(
   here("sql", "01_raw", "ops", "merge_channel_dims.sql"),
   here("sql", "01_raw", "ops", "append_daily_metrics.sql"),
-  here("sql", "03_marts", "fct_daily_performance.sql"),
-  here("sql", "04_apps", "get_leaderboard_30d.sql"),
-  here("sql", "04_apps", "get_global_summary.sql"),
-  here("sql", "04_apps", "get_channel_lookup.sql")
+  here("sql", "03_marts", "fct_daily_performance.sql")
 )
 
-# Execute in order
+# Execute the fixed ops sequence first
 lapply(sql_ops_sequence, function(X) {
   run_sql_file(connection = connection,
                path = X)
 })
+
+# Mart layer: incremental MERGE with BigQuery query parameters.
+# These must run after fct_daily_performance (the fact table they depend on)
+# and before the 04_Apps tables.
+today <- Sys.Date()
+
+windows <- unique(as.integer(unlist(config_get("window_days", 30))))
+message(glue("--- Mart Layer: channel metrics ({paste(windows, collapse = ', ')} days) ---"))
+for (wd in windows) {
+  run_sql_file(connection,
+               here("sql", "03_marts", "mart_channel_metrics.sql"),
+               params = list(
+                 start_date  = today,
+                 end_date    = today,
+                 window_days = wd
+               ))
+}
+
+run_sql_file(connection,
+             here("sql", "03_marts", "mart_channel_cohorts.sql"),
+             params = list(start_date = today, end_date = today))
+
+run_sql_file(connection,
+             here("sql", "03_marts", "mart_channel_metrics_values.sql"),
+             params = list(start_date = today, end_date = today))
+
+run_sql_file(connection,
+             here("sql", "03_marts", "mart_channel_rankings.sql"),
+             params = list(start_date = today, end_date = today))
+
+# 04_Apps layer: parameterless CREATE OR REPLACE tables
+message("--- 04_Apps Layer ---")
+run_sql_file(connection, here("sql", "04_apps", "get_leaderboard.sql"))
+run_sql_file(connection, here("sql", "04_apps", "get_global_summary.sql"))
+run_sql_file(connection, here("sql", "04_apps", "get_channel_lookup.sql"))
 
 # 5. Write cache files to GCS ####
 message("Writing cache files to GCS...")
@@ -111,7 +147,7 @@ if (Sys.getenv("ETL_ENV") == "production") {
   gcs_auth(json_file = service_account_path)
 }
 
-gcs_global_bucket("yt-sailing-dashboard-cache")
+gcs_global_bucket(config_get("gcs_bucket", "yt-sailing-dashboard-cache"))
 
 # Helper: serialize to a temp file and upload
 upload_as_rds <- function(data, gcs_name) {
@@ -123,12 +159,13 @@ upload_as_rds <- function(data, gcs_name) {
 }
 
 global_summary_cache  <- bq_table_download(bq_table(project, dataset, "global_summary"))
-leaderboard_30d_cache <- bq_table_download(bq_table(project, dataset, "leaderboard_30d"))
-channel_lookup_cache  <- bq_table_download(bq_table(project, dataset, "channel_lookup"))
+leaderboard_cache     <- bq_table_download(bq_table(project, dataset, "leaderboard"))
+channel_info_cache    <- bq_table_download(bq_table(project, dataset, "channel_lookup"))
 
-upload_as_rds(global_summary_cache,  "cache/global_summary.rds")
-upload_as_rds(leaderboard_30d_cache, "cache/leaderboard_30d.rds")
-upload_as_rds(channel_lookup_cache,  "cache/channel_lookup.rds")
+gcs_prefix <- config_get("gcs_cache_prefix", "cache")
+upload_as_rds(global_summary_cache,  paste0(gcs_prefix, "/global_summary.rds"))
+upload_as_rds(leaderboard_cache,     paste0(gcs_prefix, "/leaderboard_rankings.rds"))
+upload_as_rds(channel_info_cache,    paste0(gcs_prefix, "/channel_info.rds"))
 
 message("GCS cache write complete.")
 

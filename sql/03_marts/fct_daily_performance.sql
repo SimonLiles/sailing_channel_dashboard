@@ -1,12 +1,12 @@
 /* ====================================================================
    Layer: 03_Marts
-   Purpose: Calculate analytical KPIs for the Shiny Dashboard.
+   Purpose: Calculate base metrics for the Shiny Dashboard.
    Logic: 
     - 7-Day Rolling Average: Smooths out weekend/weekday volatility.
     - Daily Growth: Calculates views gained since the previous day.
 ==================================================================== */
 
-CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance` AS
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.fct_daily_performance` AS
 
 WITH daily_diffs AS (
   SELECT 
@@ -22,7 +22,7 @@ WITH daily_diffs AS (
     -- Calculate "New Videos" tracking activity by the channel
     video_count - LAG(video_count) OVER (PARTITION BY channel_id ORDER BY date) AS daily_new_videos
   FROM 
-    `yt-sailing-dashboard.yt_sailing_data.daily_metrics_history`
+    `{{project}}.{{dataset}}.daily_metrics_history`
 )
 
 SELECT 

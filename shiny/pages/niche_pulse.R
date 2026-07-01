@@ -80,7 +80,7 @@ niche_pulse_server <- function(input, output, session) {
   )
 
   output$view_growth_pct <- renderText(
-    paste0(formatC(global_summary$view_growth_pct[1], format = "d", big.mark = ","), "%")
+    format_dashboard_value(global_summary$view_growth_pct[1], is_pct = TRUE)
   )
 
   output$new_subs_24h <- renderText(
@@ -94,14 +94,14 @@ niche_pulse_server <- function(input, output, session) {
   output$avg_daily_views <- renderText(
     paste(
       "Average New Views (Last 24h):",
-      formatC(global_summary$avg_daily_views[1], format = "d", big.mark = ",")
+      format_dashboard_value(global_summary$avg_daily_views[1])
     )
   )
 
   output$avg_daily_subs <- renderText(
     paste(
       "Average New Subscribers (Last 24h):",
-      formatC(global_summary$avg_daily_subs[1], format = "d", big.mark = ",")
+      format_dashboard_value(global_summary$avg_daily_subs[1])
     )
   )
 

@@ -1,2 +1,2 @@
 SELECT channel_id, channel_handle
-FROM channel_dimensions;
+FROM `{{project}}.{{dataset}}.channel_dimensions`;

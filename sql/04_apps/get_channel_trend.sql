@@ -17,7 +17,7 @@ SELECT
     lifetime_subs_per_vid,
     sub_velocity_per_10k
 FROM 
-    `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance`
+    `{{project}}.{{dataset}}.fct_daily_performance`
 WHERE 
     channel_id = @channel_id  -- Injection Point 1
     AND date >= @start_date   -- Injection Point 2

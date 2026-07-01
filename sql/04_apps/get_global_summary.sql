@@ -6,7 +6,7 @@
     - Aggregates views and subs across ALL channels.
     - Calculates a Day-over-Day (DoD) percentage change.
 ==================================================================== */
-CREATE OR REPLACE TABLE `yt-sailing-dashboard.yt_sailing_data.global_summary` AS
+CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.global_summary` AS
 WITH daily_aggregates AS (
   SELECT 
     date,
@@ -22,7 +22,7 @@ WITH daily_aggregates AS (
     AVG(GREATEST(daily_new_subs, 0)) AS avg_daily_subs,
     -- PERCENTILE_CONT(daily_new_subs, 0.5) AS median_daily_subs
   FROM 
-    `yt-sailing-dashboard.yt_sailing_data.fct_daily_performance`
+    `{{project}}.{{dataset}}.fct_daily_performance`
   GROUP BY 1
 ),
 
