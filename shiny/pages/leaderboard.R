@@ -33,6 +33,11 @@ cohort_meta <- tibble::tribble(
   "subscriber_count", "Subscriber Count"
 )
 
+cohort_bucket_order <- list(
+  subscriber_count = c("<1K", "1k- 10K", "10K - 100k",
+                       "100K - 500k", "500K - 1M", "1M - 10M", "10M+")
+)
+
 # UI ----
 leaderboard_ui <- nav_panel(
   "The Leaderboard",
@@ -113,8 +118,14 @@ leaderboard_server <- function(input, output, session) {
     buckets <- leaderboard_rankings %>%
       filter(cohort_type == input$leaderboard_cohort) %>%
       distinct(cohort_value) %>%
-      pull(cohort_value) %>%
-      sort()
+      pull(cohort_value)
+
+    if (input$leaderboard_cohort %in% names(cohort_bucket_order)) {
+      order <- cohort_bucket_order[[input$leaderboard_cohort]]
+      buckets <- order[order %in% buckets]
+    } else {
+      buckets <- sort(buckets)
+    }
 
     selectInput("leaderboard_bucket", "Bucket:",
       choices = buckets, selected = buckets[1])
