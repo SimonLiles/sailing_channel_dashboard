@@ -1,10 +1,10 @@
 # ====================================================================
 #  Growth Benchmarks
-#  Compare a selected channel's performance against all channels in
-#  the global 30-day cohort.
+#  Compare a selected channel's performance against other channels in
+#  the selected cohort (e.g., global, subscriber count tier).
 #
-#  Data: leaderboard_rankings (global, long format)
-#        channel_info         (global, one row per channel)
+#  Data: leaderboard_rankings (long format with cohort_type / cohort_value)
+#        channel_info         (one row per channel)
 # ====================================================================
 
 # UI ----
@@ -28,6 +28,9 @@ growth_benchmarks_ui <- nav_panel(
     ),
   ),
 
+  # Cohort selector (hidden until a channel is selected)
+  uiOutput("cohort_selector_ui"),
+
   # Data area (hidden until a channel is selected)
   uiOutput("growth_metrics_ui"),
 )
@@ -43,14 +46,50 @@ growth_benchmarks_server <- function(input, output, session) {
     server = TRUE
   )
 
-  # ---- Wide datasets for all channels (global, 30-day) ----
+  # ---- Available cohort types ----
+  cohort_types <- reactive({
+    types <- leaderboard_rankings %>%
+      distinct(cohort_type) %>%
+      pull(cohort_type)
+    nice_names <- str_to_title(gsub("_", " ", types))
+    set_names(types, nice_names)
+  })
 
-  global_30d <- reactive({
+  # ---- Selected channel's cohort value for the chosen type ----
+  selected_channel_cohort_value <- reactive({
+    req(input$selected_channel_benchmarks)
+    cohort <- input$benchmark_cohort_type %||% "global"
+    leaderboard_rankings %>%
+      filter(
+        channel_id == input$selected_channel_benchmarks,
+        cohort_type == cohort
+      ) %>%
+      distinct(cohort_value) %>%
+      pull(cohort_value) %>%
+      first()
+  })
+
+  # ---- Format cohort label for display ----
+  format_cohort_display <- reactive({
+    req(selected_channel_cohort_value())
+    ct <- input$benchmark_cohort_type %||% "global"
+    cv <- selected_channel_cohort_value()
+    if (ct == "global") return("All channels")
+    if (ct == "subscriber_count") return(paste0(cv, " subscribers"))
+    cv
+  })
+
+  # ---- Wide datasets for all channels in the selected cohort (30-day) ----
+
+  benchmark_cohort_30d <- reactive({
+    req(selected_channel_cohort_value())
+    cohort <- input$benchmark_cohort_type %||% "global"
+    cv <- selected_channel_cohort_value()
     leaderboard_rankings %>%
       filter(
         window_days == 30,
-        cohort_type == "global",
-        cohort_value == "global",
+        cohort_type == cohort,
+        cohort_value == cv,
         metric_name != "lifetime_views_per_vid"
       ) %>%
       select(channel_id, metric_name, metric_value, ranking, percentile) %>%
@@ -64,12 +103,15 @@ growth_benchmarks_server <- function(input, output, session) {
       inner_join(channel_info, by = "channel_id")
   })
 
-  global_lifetime <- reactive({
+  benchmark_cohort_lifetime <- reactive({
+    req(selected_channel_cohort_value())
+    cohort <- input$benchmark_cohort_type %||% "global"
+    cv <- selected_channel_cohort_value()
     leaderboard_rankings %>%
       filter(
         is.na(window_days),
-        cohort_type == "global",
-        cohort_value == "global"
+        cohort_type == cohort,
+        cohort_value == cv
       ) %>%
       select(channel_id, metric_name, metric_value, ranking, percentile) %>%
       pivot_wider(
@@ -86,14 +128,33 @@ growth_benchmarks_server <- function(input, output, session) {
 
   channel_growth_metrics <- reactive({
     req(input$selected_channel_benchmarks)
-    global_30d() %>%
+    benchmark_cohort_30d() %>%
       filter(channel_id == input$selected_channel_benchmarks)
   })
 
   channel_lifetime_metrics <- reactive({
     req(input$selected_channel_benchmarks)
-    global_lifetime() %>%
+    benchmark_cohort_lifetime() %>%
       filter(channel_id == input$selected_channel_benchmarks)
+  })
+
+  # ---- Cohort selector (only depends on channel selection, not cohort value) ----
+  output$cohort_selector_ui <- renderUI({
+    req(input$selected_channel_benchmarks)
+    fluidRow(
+      column(6,
+        selectInput("benchmark_cohort_type", "Cohort:",
+          choices = cohort_types(),
+          selected = "global"
+        ),
+        h5(textOutput("cohort_label"))
+      )
+    )
+  })
+
+  output$cohort_label <- renderText({
+    req(format_cohort_display())
+    paste0("Channel is in: ", format_cohort_display())
   })
 
   # ---- Output UI ----
@@ -201,7 +262,7 @@ growth_benchmarks_server <- function(input, output, session) {
   output$algorithm_performance_chart <- renderPlotly(
     ggplotly(
       tooltip = "text",
-      ggplot(global_lifetime(), aes(x = subscriber_count, y = lifetime_views_per_vid_metric_value)) +
+      ggplot(benchmark_cohort_lifetime(), aes(x = subscriber_count, y = lifetime_views_per_vid_metric_value)) +
         geom_point(alpha = 1, color = "black", aes(text = channel_handle)) +
         geom_smooth(method = "lm") +
         annotate(
@@ -222,7 +283,7 @@ growth_benchmarks_server <- function(input, output, session) {
   output$algorithm_performance_30d_chart <- renderPlotly(
     ggplotly(
       tooltip = "text",
-      ggplot(global_30d(), aes(x = subscriber_count, y = views_per_vid_window_metric_value)) +
+      ggplot(benchmark_cohort_30d(), aes(x = subscriber_count, y = views_per_vid_window_metric_value)) +
         geom_point(alpha = 1, color = "black", aes(text = channel_handle)) +
         geom_smooth(method = "lm") +
         annotate(
@@ -243,7 +304,7 @@ growth_benchmarks_server <- function(input, output, session) {
   output$audience_activation_30d_chart <- renderPlotly(
     ggplotly(
       tooltip = "text",
-      ggplot(global_30d(), aes(x = subscriber_count, y = views_per_sub_window_metric_value)) +
+      ggplot(benchmark_cohort_30d(), aes(x = subscriber_count, y = views_per_sub_window_metric_value)) +
         geom_point(alpha = 1, color = "black", aes(text = channel_handle)) +
         geom_smooth(method = "lm") +
         annotate(
