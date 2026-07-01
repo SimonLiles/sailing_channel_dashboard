@@ -21,6 +21,12 @@
        day's snapshot.
      - rank_change = prev_ranking - current_ranking
        (positive = moved up in rank).
+
+   Performance note: Historical snapshots are determined solely by
+   window_days (only ~5 distinct values). We filter historical
+   rankings by a small IN-list of dates rather than using a
+   non-equi join (<=), which would explode across every (channel,
+   metric, cohort) group.
    ==================================================================== */
 
 CREATE OR REPLACE TABLE `{{project}}.{{dataset}}.leaderboard` AS
@@ -30,7 +36,7 @@ WITH latest_snapshot AS (
   FROM `{{project}}.{{dataset}}.mart_channel_rankings`
 ),
 
--- Current rankings with metric values and historical target date
+-- Current rankings (latest snapshot only, with metric values)
 current_rankings AS (
   SELECT
     r.channel_id,
@@ -40,12 +46,7 @@ current_rankings AS (
     r.cohort_value,
     v.metric_value,
     r.ranking,
-    r.percentile,
-    CASE
-      WHEN r.window_days IS NOT NULL
-        THEN DATE_SUB(l.snapshot_date, INTERVAL r.window_days DAY)
-      ELSE DATE_SUB(l.snapshot_date, INTERVAL 1 DAY)
-    END AS historical_target_date
+    r.percentile
   FROM `{{project}}.{{dataset}}.mart_channel_rankings` AS r
   CROSS JOIN latest_snapshot l
   LEFT JOIN `{{project}}.{{dataset}}.mart_channel_metrics_values` AS v
@@ -56,27 +57,29 @@ current_rankings AS (
   WHERE r.snapshot_date = l.snapshot_date
 ),
 
--- Nearest available snapshot_date at or before each target date
--- (handles gaps where the ETL did not run on a given day)
-historical_snapshot_dates AS (
+-- Historical rankings at the target date for each distinct window_days.
+-- Historical snapshot dates are the same for ALL channels in a given
+-- window period, so we only need one target date per window_days value.
+historical_rankings AS (
   SELECT
-    c.metric_name,
-    c.window_days,
-    c.cohort_type,
-    c.cohort_value,
-    MAX(h.snapshot_date) AS historical_snapshot_date
-  FROM current_rankings c
-  LEFT JOIN `{{project}}.{{dataset}}.mart_channel_rankings` h
-    ON c.metric_name  = h.metric_name
-    AND c.window_days IS NOT DISTINCT FROM h.window_days
-    AND c.cohort_type = h.cohort_type
-    AND c.cohort_value IS NOT DISTINCT FROM h.cohort_value
-    AND h.snapshot_date <= c.historical_target_date
-  GROUP BY
-    c.metric_name,
-    c.window_days,
-    c.cohort_type,
-    c.cohort_value
+    r.channel_id,
+    r.metric_name,
+    r.window_days,
+    r.cohort_type,
+    r.cohort_value,
+    r.ranking AS prev_ranking
+  FROM `{{project}}.{{dataset}}.mart_channel_rankings` r
+  WHERE r.snapshot_date IN (
+    SELECT DISTINCT
+      CASE
+        WHEN window_days IS NOT NULL
+          THEN DATE_SUB((SELECT snapshot_date FROM latest_snapshot),
+                        INTERVAL window_days DAY)
+        ELSE DATE_SUB((SELECT snapshot_date FROM latest_snapshot),
+                      INTERVAL 1 DAY)
+      END
+    FROM current_rankings
+  )
 )
 
 SELECT
@@ -88,18 +91,12 @@ SELECT
   c.metric_value,
   c.ranking,
   c.percentile,
-  h.ranking AS prev_ranking,
-  h.ranking - c.ranking AS rank_change
+  h.prev_ranking,
+  h.prev_ranking - c.ranking AS rank_change
 FROM current_rankings c
-LEFT JOIN historical_snapshot_dates hs
-  ON c.metric_name  = hs.metric_name
-  AND c.window_days IS NOT DISTINCT FROM hs.window_days
-  AND c.cohort_type = hs.cohort_type
-  AND c.cohort_value IS NOT DISTINCT FROM hs.cohort_value
-LEFT JOIN `{{project}}.{{dataset}}.mart_channel_rankings` h
+LEFT JOIN historical_rankings h
   ON c.channel_id   = h.channel_id
   AND c.metric_name = h.metric_name
   AND c.window_days IS NOT DISTINCT FROM h.window_days
   AND c.cohort_type = h.cohort_type
-  AND c.cohort_value IS NOT DISTINCT FROM h.cohort_value
-  AND h.snapshot_date = hs.historical_snapshot_date;
+  AND c.cohort_value IS NOT DISTINCT FROM h.cohort_value;
