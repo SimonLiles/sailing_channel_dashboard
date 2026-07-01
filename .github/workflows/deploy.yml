@@ -123,18 +123,27 @@ jobs:
         run: |
           gcloud run jobs update yt-sailing-channel-etl-job \
             --image ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
+            --command "Rscript" \
+            --args "main.R" \
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }}
 
       - name: Pre-migration snapshot (safety net)
         run: |
-          bq cp --force --clone \
-            ${{ env.PROJECT_ID }}:yt_sailing_data \
-            ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration || true
+          bq mk --force --dataset ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration
+          bq query --use_legacy_sql=false \
+            "CALL \`${{ env.PROJECT_ID }}.yt_sailing_data.clone_dataset\`(
+               '${{ env.PROJECT_ID }}', 'yt_sailing_data',
+               '${{ env.PROJECT_ID }}', 'yt_sailing_data_pre_migration',
+               FALSE, FALSE, FALSE
+             )" || echo "WARNING: Snapshot failed — check permissions and that clone_dataset procedure exists."
           echo "Snapshot created. Rollback with:"
-          echo "  bq cp --force --clone \\"
-          echo "    ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration \\"
-          echo "    ${{ env.PROJECT_ID }}:yt_sailing_data"
+          echo "  bq mk --force --dataset ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration"
+          echo "  bq query --use_legacy_sql=false"
+          echo "    \"CALL \\\`${{ env.PROJECT_ID }}.yt_sailing_data.clone_dataset\\\`("
+          echo "       '${{ env.PROJECT_ID }}', 'yt_sailing_data_pre_migration',"
+          echo "       '${{ env.PROJECT_ID }}', 'yt_sailing_data',"
+          echo "       FALSE, FALSE, FALSE\")"
 
       - name: Run schema migration (DDL + apps layer)
         run: |
