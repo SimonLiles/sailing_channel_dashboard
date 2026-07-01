@@ -130,20 +130,24 @@ jobs:
 
       - name: Pre-migration snapshot (safety net)
         run: |
-          bq mk --force --dataset ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration
-          bq query --use_legacy_sql=false \
-            "CALL \`${{ env.PROJECT_ID }}.yt_sailing_data.clone_dataset\`(
-               '${{ env.PROJECT_ID }}', 'yt_sailing_data',
-               '${{ env.PROJECT_ID }}', 'yt_sailing_data_pre_migration',
-               FALSE, FALSE, FALSE
-             )" || echo "WARNING: Snapshot failed — check permissions and that clone_dataset procedure exists."
-          echo "Snapshot created. Rollback with:"
-          echo "  bq mk --force --dataset ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration"
-          echo "  bq query --use_legacy_sql=false"
-          echo "    \"CALL \\\`${{ env.PROJECT_ID }}.yt_sailing_data.clone_dataset\\\`("
-          echo "       '${{ env.PROJECT_ID }}', 'yt_sailing_data_pre_migration',"
-          echo "       '${{ env.PROJECT_ID }}', 'yt_sailing_data',"
-          echo "       FALSE, FALSE, FALSE\")"
+          if bq mk --force --dataset ${{ env.PROJECT_ID }}:yt_sailing_data_pre_migration 2>/dev/null; then
+            bq query --use_legacy_sql=false \
+              "CALL \`${{ env.PROJECT_ID }}.yt_sailing_data.clone_dataset\`(
+                 '${{ env.PROJECT_ID }}', 'yt_sailing_data',
+                 '${{ env.PROJECT_ID }}', 'yt_sailing_data_pre_migration',
+                 FALSE, FALSE, FALSE
+               )" || echo "WARNING: Snapshot clone failed — check that clone_dataset procedure exists."
+            echo "Snapshot created. To rollback:"
+            echo "  bq query --use_legacy_sql=false"
+            echo "    \"CALL \\\`${{ env.PROJECT_ID }}.yt_sailing_data.clone_dataset\\\`("
+            echo "       '${{ env.PROJECT_ID }}', 'yt_sailing_data_pre_migration',"
+            echo "       '${{ env.PROJECT_ID }}', 'yt_sailing_data',"
+            echo "       FALSE, FALSE, FALSE)"
+          else
+            echo "WARNING: Cannot create snapshot dataset (missing bigquery.datasets.create permission)."
+            echo "  Grant this permission to the service account or create yt_sailing_data_pre_migration"
+            echo "  manually. Snapshot skipped — migration continues."
+          fi
 
       - name: Run schema migration (DDL + apps layer)
         run: |
