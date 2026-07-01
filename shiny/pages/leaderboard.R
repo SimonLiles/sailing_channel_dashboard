@@ -168,11 +168,13 @@ leaderboard_server <- function(input, output, session) {
     req(nrow(df) > 0)
 
     wide <- df %>%
-      select(channel_id, metric_name, metric_value, ranking, percentile) %>%
+      select(channel_id, metric_name, metric_value,
+             ranking, percentile, prev_ranking, rank_change) %>%
       pivot_wider(
         id_cols = channel_id,
         names_from = metric_name,
-        values_from = c(metric_value, ranking, percentile),
+        values_from = c(metric_value, ranking, percentile,
+                        prev_ranking, rank_change),
         values_fn = \(x) x[[1]],          # safety: take first if duplicate
         names_glue = "{metric_name}_{.value}"
       ) %>%
@@ -236,7 +238,28 @@ leaderboard_server <- function(input, output, session) {
 
     rank_def <- setNames(list(colDef(name = "Rank", maxWidth = 80)), rank_col)
 
-    c(rank_def, chan_defs, metric_defs)
+    rank_change_col <- paste0(rank_by, "_rank_change")
+    rank_change_def <- setNames(
+      list(colDef(
+        name = "\u0394", maxWidth = 65, align = "right",
+        cell = function(value) {
+          if (is.na(value)) {
+            tags$span(style = "color: #999;", "\u2014")
+          } else if (value > 0) {
+            tags$span(style = "color: #22c55e; font-weight: bold;",
+                      paste0("\u25B2 +", value))
+          } else if (value < 0) {
+            tags$span(style = "color: #ef4444; font-weight: bold;",
+                      paste0("\u25BC ", value))
+          } else {
+            tags$span(style = "color: #999;", "\u2014")
+          }
+        }
+      )),
+      rank_change_col
+    )
+
+    c(rank_def, rank_change_def, chan_defs, metric_defs)
   }
 
   output$leaderboard_reactable <- renderUI({
@@ -253,6 +276,7 @@ leaderboard_server <- function(input, output, session) {
     output$leaderboard_table <- renderReactable({
       keep_cols <- c(
         paste0(rank_by, "_ranking"),
+        paste0(rank_by, "_rank_change"),
         "profile_pic", "channel_title", "channel_handle",
         "subscriber_count", "view_count", "video_count",
         paste0(display_metrics, "_metric_value")
