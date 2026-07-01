@@ -125,6 +125,7 @@ jobs:
             --image ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }} \
             --command "Rscript" \
             --args "main.R" \
+            --memory 2048Mi \
             --region ${{ env.REGION }} \
             --project ${{ env.PROJECT_ID }}
 

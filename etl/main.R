@@ -158,14 +158,22 @@ upload_as_rds <- function(data, gcs_name) {
   message(paste("\tUploaded:", gcs_name))
 }
 
-global_summary_cache  <- bq_table_download(bq_table(project, dataset, "global_summary"))
-leaderboard_cache     <- bq_table_download(bq_table(project, dataset, "leaderboard"))
-channel_info_cache    <- bq_table_download(bq_table(project, dataset, "channel_lookup"))
+# Free stale collected data before the memory-heavy cache phase
+rm(raw_yt_data, raw_yt_data_list, channels)
+gc()
 
+# Download + upload each cache table sequentially, freeing memory between
 gcs_prefix <- config_get("gcs_cache_prefix", "cache")
-upload_as_rds(global_summary_cache,  paste0(gcs_prefix, "/global_summary.rds"))
-upload_as_rds(leaderboard_cache,     paste0(gcs_prefix, "/leaderboard_rankings.rds"))
-upload_as_rds(channel_info_cache,    paste0(gcs_prefix, "/channel_info.rds"))
+cache_tables <- list(
+  list(bq_name = "global_summary",  gcs_name = paste0(gcs_prefix, "/global_summary.rds")),
+  list(bq_name = "leaderboard",     gcs_name = paste0(gcs_prefix, "/leaderboard_rankings.rds")),
+  list(bq_name = "channel_lookup",  gcs_name = paste0(gcs_prefix, "/channel_info.rds"))
+)
+for (tbl in cache_tables) {
+  data <- bq_table_download(bq_table(project, dataset, tbl$bq_name))
+  upload_as_rds(data, tbl$gcs_name)
+  rm(data); gc()
+}
 
 message("GCS cache write complete.")
 
