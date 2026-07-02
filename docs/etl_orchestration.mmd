@@ -1,0 +1,30 @@
+%%{init: {'theme': 'dark'}}%%
+flowchart TD
+    Start([Start]) --> Auth[1. Authenticate GCP\nBigQuery + GCS]
+    Auth --> FetchIDs[2. Fetch Channel IDs\nsql/00_utils/get_channel_ids.sql]
+    FetchIDs --> Loop{"3. For each channel_id"}
+    Loop -->|Has more| YT_API[Call YouTube Data API v3\nscripts/get_yt_data.R]
+    YT_API --> Loop
+    Loop -->|Done| Upload[4. Upload Raw Data\nraw_daily_ingest\noverwrite = TRUE]
+    Upload --> Validate{"5. Row Count > 0?"}
+    Validate -->|Empty| HALT{{HALT: Stop execution}}
+    Validate -->|Has rows| MergeDims[6a. merge_channel_dims.sql\nMERGE SCD Type 1]
+    MergeDims --> AppendMetrics[6b. append_daily_metrics.sql\nINSERT NOT EXISTS dedup]
+    AppendMetrics --> FctPerf[6c. fct_daily_performance.sql\nCREATE OR REPLACE\nLAG + 7d MA + ratios]
+    FctPerf --> LoopWindows{"For each window_days\n30, 90, 180, 365"}
+    LoopWindows -->|Iterate| MartMetrics[6d. mart_channel_metrics.sql\nMERGE rolling windows]
+    MartMetrics --> LoopWindows
+    LoopWindows -->|Done| Cohorts[6e. mart_channel_cohorts.sql\nMERGE bucket assignments]
+    Cohorts --> Values[6f. mart_channel_metrics_values.sql\nMERGE long-format unpivot]
+    Values --> Rankings[6g. mart_channel_rankings.sql\nMERGE DENSE_RANK + PCT]
+    Rankings --> Leaderboard[6h. get_leaderboard.sql\nCREATE OR REPLACE\nranks + delta]
+    Leaderboard --> GlobalSum[6i. get_global_summary.sql\nCREATE OR REPLACE daily KPIs]
+    GlobalSum --> ChannelLookup[6j. get_channel_lookup.sql\nCREATE OR REPLACE active channels]
+    ChannelLookup --> GCSAuth[7a. Re-authenticate GCS]
+    GCSAuth --> WriteGlobal[7b. Upload global_summary.rds\nto GCS cache]
+    WriteGlobal --> WriteChannel[7c. Upload channel_info.rds\nto GCS cache]
+    WriteChannel --> Disconnect[8. Disconnect BigQuery]
+    Disconnect --> Done([Done])
+
+    style HALT fill:#d32f2f,color:#fff,stroke:#fff,stroke-width:2px
+    style LoopWindows fill:#1565c0,color:#fff,stroke:#fff,stroke-width:1px

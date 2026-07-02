@@ -1,0 +1,64 @@
+@startuml
+skinparam shadowing false
+skinparam defaultFontSize 11
+
+title <size:18><b>ETL Orchestration</b></size>\netl/main.R Execution Flow
+
+start
+
+:1. Authenticate GCP\nBigQuery + GCS;
+note right
+  Service account from
+  ETL_SERVICE_ACCOUNT_PATH
+end note
+
+:2. Fetch Channel IDs\nsql/00_utils/get_channel_ids.sql;
+
+:3. YouTube Data API v3\nscripts/get_yt_data.R\nlapply over channel_ids;
+
+note right
+  HTTP GET per channel
+  parts: snippet, statistics,
+  brandingSettings
+end note
+
+:4. Upload Raw Data\nraw_daily_ingest\noverwrite = TRUE;
+
+if (5. Row Count > 0?) then (yes)
+  :6a. merge_channel_dims.sql\nMERGE SCD Type 1;
+  :6b. append_daily_metrics.sql\nINSERT NOT EXISTS dedup;
+  :6c. fct_daily_performance.sql\nCREATE OR REPLACE\nLAG + 7d MA + ratios;
+  while (For each window_days\n30 / 90 / 180 / 365) is (iterate)
+    :6d. mart_channel_metrics.sql\nMERGE rolling windows;
+  endwhile
+  :6e. mart_channel_cohorts.sql\nMERGE bucket assignments;
+  :6f. mart_channel_metrics_values.sql\nMERGE long-format unpivot;
+  :6g. mart_channel_rankings.sql\nMERGE DENSE_RANK + PERCENTILE;
+  :6h. get_leaderboard.sql\nCREATE OR REPLACE\nranks + delta;
+  :6i. get_global_summary.sql\nCREATE OR REPLACE daily KPIs;
+  :6j. get_channel_lookup.sql\nCREATE OR REPLACE active channels;
+
+  :7a. Re-authenticate GCS\nService account or WIF;
+  note right #F5F5F5
+    Writes 2 RDS files to
+    GCS cache bucket
+  end note
+
+  :7b. Upload global_summary.rds;
+  :7c. Upload channel_info.rds;
+else (empty)
+  :**HALT: Stop execution**\nraw_daily_ingest is empty;
+  stop
+endif
+
+:8. Disconnect BigQuery;
+
+stop
+
+legend right
+  <b>Legend</b>
+  Steps 6a-6j execute
+  sequentially in order
+endlegend
+
+@enduml
