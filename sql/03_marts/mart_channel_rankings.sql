@@ -89,14 +89,24 @@ USING (
   FROM combined_metrics_cohorts
 
   WHERE snapshot_date BETWEEN @start_date AND @end_date
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY
+      snapshot_date,
+      channel_id,
+      metric_name,
+      window_days,
+      cohort_type,
+      cohort_value
+    ORDER BY metric_value DESC
+  ) = 1
 ) AS S
 
 ON  T.snapshot_date = S.snapshot_date
 AND T.channel_id    = S.channel_id
 AND T.metric_name   = S.metric_name
-AND T.window_days   = S.window_days
+AND T.window_days   IS NOT DISTINCT FROM S.window_days
 AND T.cohort_type   = S.cohort_type
-AND T.cohort_value  = S.cohort_value
+AND T.cohort_value  IS NOT DISTINCT FROM S.cohort_value
 
 WHEN MATCHED AND (
   T.ranking       IS DISTINCT FROM S.ranking       OR

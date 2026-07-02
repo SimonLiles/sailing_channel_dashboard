@@ -19,7 +19,7 @@ MERGE `{{project}}.{{dataset}}.mart_channel_cohorts` AS T
 
 USING (
   -- Global Cohort
-  SELECT
+  SELECT DISTINCT
     snapshot_date,
     channel_id,
     'global' AS cohort_type,
@@ -30,7 +30,7 @@ USING (
   UNION ALL
 
   -- Subscriber Count Cohorts
-  SELECT
+  SELECT DISTINCT
     snapshot_date,
     channel_id,
     'subscriber_count' AS cohort_type,
