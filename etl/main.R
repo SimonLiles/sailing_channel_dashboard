@@ -163,10 +163,11 @@ rm(raw_yt_data, raw_yt_data_list, channels)
 gc()
 
 # Download + upload each cache table sequentially, freeing memory between
+# NOTE: leaderboard is NOT cached here — the Shiny app queries BigQuery
+# directly for filtered slices to avoid loading the full table into R memory.
 gcs_prefix <- config_get("gcs_cache_prefix", "cache")
 cache_tables <- list(
   list(bq_name = "global_summary",  gcs_name = paste0(gcs_prefix, "/global_summary.rds")),
-  list(bq_name = "leaderboard",     gcs_name = paste0(gcs_prefix, "/leaderboard_rankings.rds")),
   list(bq_name = "channel_lookup",  gcs_name = paste0(gcs_prefix, "/channel_info.rds"))
 )
 for (tbl in cache_tables) {

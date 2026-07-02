@@ -76,12 +76,14 @@ leaderboard_server <- function(input, output, session) {
 
   # ---- Initialise inputs from data ----
 
-  # Populate cohort choices once data is loaded
+  # Populate cohort choices from BigQuery
   observe({
-    cohorts <- unique(leaderboard_rankings$cohort_type)
-    idx <- match(cohorts, cohort_meta$cohort_type)
-    labels <- ifelse(is.na(idx), cohorts, cohort_meta$display_label[idx])
-    choices <- setNames(cohorts, labels)
+    cohorts <- get_leaderboard_cohorts()
+    req(nrow(cohorts) > 0)
+    types <- unique(cohorts$cohort_type)
+    idx <- match(types, cohort_meta$cohort_type)
+    labels <- ifelse(is.na(idx), types, cohort_meta$display_label[idx])
+    choices <- setNames(types, labels)
     updateSelectInput(session, "leaderboard_cohort",
       choices = choices, selected = "global")
   })
@@ -115,10 +117,9 @@ leaderboard_server <- function(input, output, session) {
                "Global ranking (all channels)"))
     }
 
-    buckets <- leaderboard_rankings %>%
-      filter(cohort_type == input$leaderboard_cohort) %>%
-      distinct(cohort_value) %>%
-      pull(cohort_value)
+    result <- get_leaderboard_buckets(input$leaderboard_cohort)
+    req(nrow(result) > 0)
+    buckets <- result$cohort_value
 
     if (input$leaderboard_cohort %in% names(cohort_bucket_order)) {
       order <- cohort_bucket_order[[input$leaderboard_cohort]]
@@ -133,7 +134,7 @@ leaderboard_server <- function(input, output, session) {
 
   # ---- Data transformations ----
 
-  # Filter long-format data to the selected window, cohort, and metrics
+  # Query BigQuery for the filtered leaderboard slice
   leaderboard_filtered <- reactive({
     req(input$leaderboard_cohort, input$leaderboard_rank_by,
         input$leaderboard_display_metrics, input$leaderboard_window)
@@ -147,23 +148,20 @@ leaderboard_server <- function(input, output, session) {
       as.integer(input$leaderboard_window)
     }
 
-    data <- leaderboard_rankings %>%
-      filter(cohort_type == input$leaderboard_cohort)
-
-    if (input$leaderboard_cohort == "global") {
-      data <- data %>% filter(cohort_value == "global")
+    cohort_value <- if (input$leaderboard_cohort == "global") {
+      "global"
     } else {
       req(input$leaderboard_bucket)
-      data <- data %>% filter(cohort_value == input$leaderboard_bucket)
+      input$leaderboard_bucket
     }
 
-    data <- data %>% filter(metric_name %in% selected_metrics)
-
-    if (is.na(wv)) {
-      data <- data %>% filter(is.na(window_days))
-    } else {
-      data <- data %>% filter(window_days == wv | is.na(window_days))
-    }
+    data <- get_leaderboard_slice(
+      cohort_type  = input$leaderboard_cohort,
+      cohort_value = cohort_value,
+      metric_names = selected_metrics,
+      window_days  = wv
+    )
+    req(nrow(data) > 0)
 
     # Deduplicate: when a metric appears with both NULL and non-NULL
     # window_days (e.g. lifetime_views_per_vid), prefer the non-NULL row
@@ -219,19 +217,7 @@ leaderboard_server <- function(input, output, session) {
           tags$a(href = paste0("https://www.youtube.com/", value),
                  target = "_blank", value)
         }
-      ),
-      subscriber_count = colDef(
-        name = "Subscribers", align = "right",
-        cell = function(value) {
-          if (is.na(value) || value < 1000) {
-            formatC(value, format = "d", big.mark = ",")
-          } else {
-            paste0("~", format_youtube_style(value))
-          }
-        }
-      ),
-      view_count  = colDef(name = "Total Views", format = colFormat(separators = TRUE)),
-      video_count = colDef(name = "Videos",       format = colFormat(separators = TRUE))
+      )
     )
 
     metric_defs <- list()
@@ -244,6 +230,20 @@ leaderboard_server <- function(input, output, session) {
       metric_defs[[value_col]] <- colDef(
         name = display_name, align = "right",
         format = colFormat(separators = TRUE, digits = digits)
+      )
+    }
+
+    # Override subscriber_count with YouTube-style formatting
+    if ("subscriber_count" %in% display_metrics) {
+      metric_defs[["subscriber_count_metric_value"]] <- colDef(
+        name = "Subscribers", align = "right",
+        cell = function(value) {
+          if (is.na(value) || value < 1000) {
+            formatC(value, format = "d", big.mark = ",")
+          } else {
+            paste0("~", format_youtube_style(value))
+          }
+        }
       )
     }
 
@@ -289,7 +289,6 @@ leaderboard_server <- function(input, output, session) {
         paste0(rank_by, "_ranking"),
         paste0(rank_by, "_rank_change"),
         "profile_pic", "channel_title", "channel_handle",
-        "subscriber_count", "view_count", "video_count",
         paste0(display_metrics, "_metric_value")
       )
       keep_cols <- intersect(keep_cols, names(data))

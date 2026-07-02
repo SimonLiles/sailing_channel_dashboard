@@ -2,6 +2,8 @@ server <- function(input, output, session) {
   message("Server started")
 
   # Reactive poll to refresh cached data hourly ----
+  # NOTE: leaderboard is not cached — the pages query BigQuery directly
+  # for filtered slices.
   app_data_poll <- reactivePoll(
     intervalMillis = 3600000,
     session = session,
@@ -14,23 +16,20 @@ server <- function(input, output, session) {
       t <- system.time({
         gcs_prefix <- config_get("gcs_cache_prefix", "cache")
         gs <- read_rds_from_gcs(paste0(gcs_prefix, "/global_summary.rds"))
-        lb <- read_rds_from_gcs(paste0(gcs_prefix, "/leaderboard_rankings.rds"))
         ci <- read_rds_from_gcs(paste0(gcs_prefix, "/channel_info.rds"))
       })
       message(paste("GCS reload took", t["elapsed"], "seconds"))
       list(
-        global_summary_pull       = gs,
-        leaderboard_rankings_pull = lb,
-        channel_info_pull         = ci
+        global_summary_pull = gs,
+        channel_info_pull   = ci
       )
     }
   )
 
   observe({
     app_data <- app_data_poll()
-    global_summary       <<- app_data$global_summary_pull
-    leaderboard_rankings <<- app_data$leaderboard_rankings_pull
-    channel_info         <<- app_data$channel_info_pull
+    global_summary <<- app_data$global_summary_pull
+    channel_info   <<- app_data$channel_info_pull
     message("Global variables refreshed in background.")
   })
 

@@ -48,9 +48,9 @@ growth_benchmarks_server <- function(input, output, session) {
 
   # ---- Available cohort types ----
   cohort_types <- reactive({
-    types <- leaderboard_rankings %>%
-      distinct(cohort_type) %>%
-      pull(cohort_type)
+    types <- get_leaderboard_cohorts()
+    req(nrow(types) > 0)
+    types <- unique(types$cohort_type)
     nice_names <- str_to_title(gsub("_", " ", types))
     set_names(types, nice_names)
   })
@@ -59,14 +59,9 @@ growth_benchmarks_server <- function(input, output, session) {
   selected_channel_cohort_value <- reactive({
     req(input$selected_channel_benchmarks)
     cohort <- input$benchmark_cohort_type %||% "global"
-    leaderboard_rankings %>%
-      filter(
-        channel_id == input$selected_channel_benchmarks,
-        cohort_type == cohort
-      ) %>%
-      distinct(cohort_value) %>%
-      pull(cohort_value) %>%
-      first()
+    result <- get_channel_cohort_value(input$selected_channel_benchmarks, cohort)
+    req(nrow(result) > 0)
+    result$cohort_value[1]
   })
 
   # ---- Format cohort label for display ----
@@ -85,14 +80,7 @@ growth_benchmarks_server <- function(input, output, session) {
     req(selected_channel_cohort_value())
     cohort <- input$benchmark_cohort_type %||% "global"
     cv <- selected_channel_cohort_value()
-    leaderboard_rankings %>%
-      filter(
-        window_days == 30,
-        cohort_type == cohort,
-        cohort_value == cv,
-        metric_name != "lifetime_views_per_vid"
-      ) %>%
-      select(channel_id, metric_name, metric_value, ranking, percentile) %>%
+    get_benchmark_cohort(cohort, cv, 30L, exclude_metric = "lifetime_views_per_vid") %>%
       pivot_wider(
         id_cols = channel_id,
         names_from = metric_name,
@@ -107,13 +95,7 @@ growth_benchmarks_server <- function(input, output, session) {
     req(selected_channel_cohort_value())
     cohort <- input$benchmark_cohort_type %||% "global"
     cv <- selected_channel_cohort_value()
-    leaderboard_rankings %>%
-      filter(
-        is.na(window_days),
-        cohort_type == cohort,
-        cohort_value == cv
-      ) %>%
-      select(channel_id, metric_name, metric_value, ranking, percentile) %>%
+    get_benchmark_cohort(cohort, cv, NA_integer_) %>%
       pivot_wider(
         id_cols = channel_id,
         names_from = metric_name,
