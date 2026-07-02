@@ -68,7 +68,12 @@ leaderboard_ui <- nav_panel(
     )
   ),
 
-  uiOutput("leaderboard_reactable")
+  withSpinner(
+    uiOutput("leaderboard_reactable"),
+    type = 8,
+    color = "#002B5B",
+    caption = "Loading leaderboard data..."
+  )
 )
 
 # Server ----

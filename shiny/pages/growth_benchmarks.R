@@ -29,10 +29,20 @@ growth_benchmarks_ui <- nav_panel(
   ),
 
   # Cohort selector (hidden until a channel is selected)
-  uiOutput("cohort_selector_ui"),
+  withSpinner(
+    uiOutput("cohort_selector_ui"),
+    type = 8,
+    color = "#002B5B",
+    caption = "Loading cohort data..."
+  ),
 
   # Data area (hidden until a channel is selected)
-  uiOutput("growth_metrics_ui"),
+  withSpinner(
+    uiOutput("growth_metrics_ui"),
+    type = 8,
+    color = "#002B5B",
+    caption = "Loading benchmark data..."
+  ),
 )
 
 # Server ----
