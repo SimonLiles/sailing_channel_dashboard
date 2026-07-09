@@ -22,6 +22,16 @@ render_sql <- function(path, project = bq_project(), dataset = bq_dataset()) {
   glue(query, project = project, dataset = dataset, .open = "{{", .close = "}}")
 }
 
+# Execute a BigQuery query with parameters, handling the argument name
+# mismatch across bigrquery versions (older uses 'parameters', newer uses 'params').
+db_execute_with_params <- function(conn, sql, params) {
+  if (exists("check_for_parameters", where = asNamespace("bigrquery"))) {
+    dbExecute(conn, sql, params = params)
+  } else {
+    dbExecute(conn, sql, parameters = params)
+  }
+}
+
 # Execute a SQL file and log progress.
 # When params is a named list, they are passed as BigQuery query parameters
 # (used by parameterised MERGE statements in the mart layer).
@@ -32,7 +42,7 @@ run_sql_file <- function(connection, path, project = bq_project(), dataset = bq_
   if (is.null(params) || length(params) == 0) {
     rows_affected <- dbExecute(connection, query)
   } else {
-    rows_affected <- dbExecute(connection, query, parameters = params)
+    rows_affected <- db_execute_with_params(connection, query, params)
   }
   message(glue("Success. Rows affected: {rows_affected}"))
 }
