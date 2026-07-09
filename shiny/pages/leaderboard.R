@@ -1,9 +1,9 @@
 # ====================================================================
-#  Leaderboard — Report Builder
+#  Leaderboard — Report Builder (Keyset-Paginated)
 #  Build a custom leaderboard table by selecting the window, cohort,
 #  rank-by metric, and which metric columns to display.
 #
-#  Data: leaderboard_rankings (global, long format)
+#  Data: mart_channel_rankings + mart_channel_metrics_values (BigQuery)
 #        channel_info         (global, one row per channel)
 # ====================================================================
 
@@ -65,6 +65,17 @@ leaderboard_ui <- nav_panel(
     column(8,
       selectInput("leaderboard_display_metrics", "Display metrics:",
         choices = NULL, multiple = TRUE)
+    )
+  ),
+
+  fluidRow(
+    column(6,
+      textInput("leaderboard_search", "Search channel:",
+        placeholder = "Type a channel name or handle...")
+    ),
+    column(6, align = "right",
+      selectInput("leaderboard_page_size", "Rows per page:",
+        choices = c(25, 50, 100), selected = 25, width = "150px")
     )
   ),
 
@@ -137,60 +148,183 @@ leaderboard_server <- function(input, output, session) {
       choices = buckets, selected = buckets[1])
   })
 
-  # ---- Data transformations ----
+  # ---- Derived filter values ----
 
-  # Query BigQuery for the filtered leaderboard slice
-  leaderboard_filtered <- reactive({
-    req(input$leaderboard_cohort, input$leaderboard_rank_by,
-        input$leaderboard_display_metrics, input$leaderboard_window)
+  # Window days (NA for lifetime)
+  window_days <- reactive({
+    if (input$leaderboard_window == "lifetime") NA_integer_ else as.integer(input$leaderboard_window)
+  })
 
-    selected_metrics <- unique(c(input$leaderboard_rank_by,
-                                 input$leaderboard_display_metrics))
-
-    wv <- if (input$leaderboard_window == "lifetime") {
-      NA_integer_
-    } else {
-      as.integer(input$leaderboard_window)
-    }
-
-    cohort_value <- if (input$leaderboard_cohort == "global") {
+  # Cohort value string
+  cohort_value <- reactive({
+    if (input$leaderboard_cohort == "global") {
       "global"
     } else {
       req(input$leaderboard_bucket)
       input$leaderboard_bucket
     }
+  })
 
-    data <- get_leaderboard_slice(
-      cohort_type  = input$leaderboard_cohort,
-      cohort_value = cohort_value,
-      metric_names = selected_metrics,
-      window_days  = wv
-    )
-    req(nrow(data) > 0)
+  # All selected metrics (rank_by + display)
+  selected_metrics <- reactive({
+    unique(c(input$leaderboard_rank_by, input$leaderboard_display_metrics))
+  })
+
+  # Debounced search
+  search_debounced <- reactive(input$leaderboard_search) %>% debounce(500)
+
+  # ---- Pagination state ----
+
+  r <- reactiveValues(
+    page          = 1L,
+    total         = 0L,
+    prev_page     = 0L,
+    first_cursor  = list(ranking = NULL, channel_id = NULL),
+    last_cursor   = list(ranking = NULL, channel_id = NULL)
+  )
+
+  # ---- Filter changes → reset pagination and recount ----
+
+  observeEvent(list(
+    input$leaderboard_window,
+    input$leaderboard_cohort,
+    input$leaderboard_bucket,
+    input$leaderboard_rank_by,
+    input$leaderboard_display_metrics,
+    search_debounced(),
+    input$leaderboard_page_size
+  ), {
+    req(input$leaderboard_cohort, input$leaderboard_rank_by)
+
+    r$page <- 1L
+    r$prev_page <- 0L
+    r$first_cursor <- list(ranking = NULL, channel_id = NULL)
+    r$last_cursor  <- list(ranking = NULL, channel_id = NULL)
+
+    isolate({
+      cv <- cohort_value()
+      wv <- window_days()
+      result <- get_leaderboard_count(
+        cohort_type    = input$leaderboard_cohort,
+        cohort_value   = cv,
+        rank_by_metric = input$leaderboard_rank_by,
+        window_days    = wv,
+        search_query   = search_debounced()
+      )
+      r$total <- result$total_channels[1] %||% 0L
+    })
+  }, ignoreNULL = FALSE)
+
+  # ---- Navigation ----
+
+  observeEvent(input$leaderboard_next, {
+    r$prev_page <- r$page
+    r$page <- r$page + 1L
+  })
+
+  observeEvent(input$leaderboard_prev, {
+    r$prev_page <- r$page
+    r$page <- r$page - 1L
+  })
+
+  # ---- Main data fetch ----
+
+  leaderboard_page <- eventReactive(list(
+    r$page,
+    input$leaderboard_window,
+    input$leaderboard_cohort,
+    input$leaderboard_bucket,
+    input$leaderboard_rank_by,
+    input$leaderboard_display_metrics,
+    search_debounced(),
+    input$leaderboard_page_size
+  ), {
+    req(input$leaderboard_cohort, input$leaderboard_rank_by,
+        input$leaderboard_display_metrics)
+
+    isolate({
+      cv  <- cohort_value()
+      wv  <- window_days()
+      sm  <- selected_metrics()
+      psz <- as.integer(input$leaderboard_page_size %||% 25L)
+
+      # Determine cursor and direction from pagination state
+      if (r$page == 1L) {
+        cursor_rank <- NULL
+        cursor_cid  <- NULL
+        dir <- "next"
+        r$prev_page <- 0L
+      } else if (r$page > r$prev_page) {
+        cursor_rank <- r$last_cursor$ranking
+        cursor_cid  <- r$last_cursor$channel_id
+        dir <- "next"
+      } else {
+        cursor_rank <- r$first_cursor$ranking
+        cursor_cid  <- r$first_cursor$channel_id
+        dir <- "prev"
+      }
+
+      data <- get_leaderboard_page(
+        cohort_type       = input$leaderboard_cohort,
+        cohort_value      = cv,
+        rank_by_metric    = input$leaderboard_rank_by,
+        window_days       = wv,
+        page_size         = psz,
+        selected_metrics  = sm,
+        cursor_ranking    = cursor_rank,
+        cursor_channel_id = cursor_cid,
+        direction         = dir,
+        search_query      = search_debounced()
+      )
+
+      data
+    })
+  })
+
+  # ---- Update cursors after data arrives ----
+
+  observeEvent(leaderboard_page(), {
+    req(nrow(leaderboard_page()) > 0)
+    isolate({
+      rank_rows <- leaderboard_page() %>%
+        filter(metric_name == input$leaderboard_rank_by)
+
+      if (nrow(rank_rows) > 0) {
+        r$first_cursor <- list(
+          ranking    = rank_rows$ranking[1],
+          channel_id = rank_rows$channel_id[1]
+        )
+        r$last_cursor <- list(
+          ranking    = rank_rows$ranking[nrow(rank_rows)],
+          channel_id = rank_rows$channel_id[nrow(rank_rows)]
+        )
+      }
+    })
+  })
+
+  # ---- Deduplicate and pivot ----
+
+  leaderboard_wide <- reactive({
+    df <- leaderboard_page()
+    req(nrow(df) > 0)
 
     # Deduplicate: when a metric appears with both NULL and non-NULL
     # window_days (e.g. lifetime_views_per_vid), prefer the non-NULL row
-    data %>%
+    df <- df %>%
       group_by(channel_id, metric_name) %>%
       slice_max(order_by = if_else(is.na(window_days), 0, 1), n = 1) %>%
       ungroup()
-  })
-
-  # Pivot to wide format and join channel info
-  leaderboard_wide <- reactive({
-    df <- leaderboard_filtered()
-    req(nrow(df) > 0)
 
     wide <- df %>%
       select(channel_id, metric_name, metric_value,
              ranking, percentile, prev_ranking, rank_change) %>%
       pivot_wider(
-        id_cols = channel_id,
-        names_from = metric_name,
+        id_cols     = channel_id,
+        names_from  = metric_name,
         values_from = c(metric_value, ranking, percentile,
                         prev_ranking, rank_change),
-        values_fn = \(x) x[[1]],          # safety: take first if duplicate
-        names_glue = "{metric_name}_{.value}"
+        values_fn   = \(x) x[[1]],
+        names_glue  = "{metric_name}_{.value}"
       ) %>%
       inner_join(channel_info, by = "channel_id")
 
@@ -201,7 +335,7 @@ leaderboard_server <- function(input, output, session) {
     wide
   })
 
-  # ---- Reactable ----
+  # ---- Reactable column definitions ----
 
   build_col_defs <- function(rank_by, display_metrics, data) {
     rank_col <- paste0(rank_by, "_ranking")
@@ -278,6 +412,13 @@ leaderboard_server <- function(input, output, session) {
     c(rank_def, rank_change_def, chan_defs, metric_defs)
   }
 
+  # ---- Render reactable with pagination controls ----
+
+  total_pages <- reactive({
+    ps <- as.integer(input$leaderboard_page_size %||% 25L)
+    ceiling(r$total / ps)
+  })
+
   output$leaderboard_reactable <- renderUI({
     req(leaderboard_wide())
 
@@ -300,27 +441,46 @@ leaderboard_server <- function(input, output, session) {
 
       reactable(
         data[keep_cols],
-        columns = col_defs,
-        highlight = TRUE,
-        striped = TRUE,
-        searchable = TRUE,
-        showPageSizeOptions = TRUE,
-        pageSizeOptions = c(25, 50, 100)
+        columns    = col_defs,
+        highlight  = TRUE,
+        striped    = TRUE,
+        searchable = FALSE,
+        pagination = FALSE
       )
     })
 
+    # Pagination controls
+    tp <- total_pages()
+    has_prev <- r$page > 1L
+    has_next <- r$page < tp
+
     tagList(
       reactableOutput("leaderboard_table"),
+      br(),
+      fluidRow(
+        column(12, align = "center",
+          div(style = "display: inline-flex; align-items: center; gap: 12px;",
+            actionButton("leaderboard_prev", "\u25C0 Prev",
+              disabled = !has_prev),
+            span(style = "font-weight: 500;",
+              "Page ", r$page, " of ", tp,
+              " (", r$total, " channels)"
+            ),
+            actionButton("leaderboard_next", "Next \u25B6",
+              disabled = !has_next)
+          )
+        )
+      ),
       tags$p(
         class = "text-muted fst-italic mt-2 px-1 small",
-        "† Subscriber Count and New Subscribers are subject to YouTube's API
+        "\u2020 Subscriber Count and New Subscribers are subject to YouTube's API
         resolution limits. Values are shown as reported and marked with ~ to
         indicate potential rounding. Channels with fewer than 1,000 subscribers
         are reported exactly. All other columns reflect precise values."
       ),
       tags$p(
         class = "text-muted fst-italic mt-2 px-1 small",
-        "†† Negative trailing averages indicate significant recent content removal,
+        "\u2020\u2020 Negative trailing averages indicate significant recent content removal,
         which affects rolling calculations. This may reflect a channel
         restructuring or content strategy change."
       )

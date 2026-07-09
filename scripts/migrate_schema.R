@@ -50,7 +50,7 @@ run_sql_file(con, here("sql", "03_marts", "fct_daily_performance.sql"))
 
 # Step 3 — Rebuild apps layer tables (CREATE OR REPLACE)
 message("--- Step 3: Apps layer ---")
-for (f in c("get_leaderboard.sql", "get_global_summary.sql", "get_channel_lookup.sql")) {
+for (f in c("get_global_summary.sql", "get_channel_lookup.sql")) {
   run_sql_file(con, here("sql", "04_apps", f))
 }
 

@@ -18,6 +18,14 @@
     - 30 Day Views per Video: 30 Day catalog yield.
     - 30 Day Views per Subscriber: 30 Day Audience Activation.
     
+    prev_ranking and rank_change:
+      Windowed metrics (30/90/180/365 days): compare current rank
+        to rank at (snapshot_date - window_days).
+      Lifetime metrics (window_days IS NULL): compare to previous
+        day's snapshot.
+      rank_change = prev_ranking - current_ranking
+        (positive = moved up in rank).
+   
    Composite Key: snapshot_date + channel_id + metric_name + window_days
                   + cohort_type + cohort_value
    
@@ -47,58 +55,83 @@ USING (
     INNER JOIN
       `{{project}}.{{dataset}}.mart_channel_cohorts` AS c
       ON m.snapshot_date = c.snapshot_date AND m.channel_id = c.channel_id
-  )
+  ),
 
-  SELECT
-    snapshot_date,
-    
-    channel_id,
-    
-    metric_name,
-    window_days,
-    
-    cohort_type,
-    cohort_value,
-
-    DENSE_RANK() OVER (
-      PARTITION BY
-        snapshot_date,
-        
-        cohort_type, 
-        cohort_value,
-        
-        metric_name,
-        window_days
-      ORDER BY metric_value DESC
-    ) AS ranking,
-    
-    CAST(ROUND(
-      (1 - PERCENT_RANK() OVER (
-        PARTITION BY
-        snapshot_date,
-        
-        cohort_type, 
-        cohort_value,
-        
-        metric_name,
-        window_days
-      ORDER BY metric_value DESC
-      )) * 100
-    ) AS INT64) AS percentile
-
-  FROM combined_metrics_cohorts
-
-  WHERE snapshot_date BETWEEN @start_date AND @end_date
-  QUALIFY ROW_NUMBER() OVER (
-    PARTITION BY
+  ranked AS (
+    SELECT
       snapshot_date,
       channel_id,
       metric_name,
       window_days,
       cohort_type,
-      cohort_value
-    ORDER BY metric_value DESC
-  ) = 1
+      cohort_value,
+      metric_value,
+
+      DENSE_RANK() OVER (
+        PARTITION BY
+          snapshot_date,
+          
+          cohort_type, 
+          cohort_value,
+          
+          metric_name,
+          window_days
+        ORDER BY metric_value DESC
+      ) AS ranking,
+      
+      CAST(ROUND(
+        (1 - PERCENT_RANK() OVER (
+          PARTITION BY
+          snapshot_date,
+          
+          cohort_type, 
+          cohort_value,
+          
+          metric_name,
+          window_days
+        ORDER BY metric_value DESC
+        )) * 100
+      ) AS INT64) AS percentile
+
+    FROM combined_metrics_cohorts
+
+    WHERE snapshot_date BETWEEN @start_date AND @end_date
+    QUALIFY ROW_NUMBER() OVER (
+      PARTITION BY
+        snapshot_date,
+        channel_id,
+        metric_name,
+        window_days,
+        cohort_type,
+        cohort_value
+      ORDER BY metric_value DESC
+    ) = 1
+  )
+
+  -- Join with historical rankings to compute rank change
+  SELECT
+    r.snapshot_date,
+    r.channel_id,
+    r.metric_name,
+    r.window_days,
+    r.cohort_type,
+    r.cohort_value,
+    r.ranking,
+    r.percentile,
+    h.ranking AS prev_ranking,
+    h.ranking - r.ranking AS rank_change
+  FROM ranked r
+  LEFT JOIN `{{project}}.{{dataset}}.mart_channel_rankings` h
+    ON  h.channel_id    = r.channel_id
+    AND h.metric_name   = r.metric_name
+    AND h.window_days   IS NOT DISTINCT FROM r.window_days
+    AND h.cohort_type   = r.cohort_type
+    AND h.cohort_value  IS NOT DISTINCT FROM r.cohort_value
+    AND h.snapshot_date = CASE
+      WHEN r.window_days IS NOT NULL
+        THEN DATE_SUB(r.snapshot_date, INTERVAL r.window_days DAY)
+      ELSE DATE_SUB(r.snapshot_date, INTERVAL 1 DAY)
+    END
 ) AS S
 
 ON  T.snapshot_date = S.snapshot_date
@@ -110,10 +143,14 @@ AND T.cohort_value  IS NOT DISTINCT FROM S.cohort_value
 
 WHEN MATCHED AND (
   T.ranking       IS DISTINCT FROM S.ranking       OR
-  T.percentile   IS DISTINCT FROM S.percentile
+  T.percentile    IS DISTINCT FROM S.percentile    OR
+  T.prev_ranking  IS DISTINCT FROM S.prev_ranking  OR
+  T.rank_change   IS DISTINCT FROM S.rank_change
 ) THEN UPDATE SET
-  T.ranking       = S.ranking,
+  T.ranking      = S.ranking,
   T.percentile   = S.percentile,
+  T.prev_ranking = S.prev_ranking,
+  T.rank_change  = S.rank_change,
   T.updated_at   = CURRENT_TIMESTAMP()
 
 WHEN NOT MATCHED THEN INSERT (
@@ -125,6 +162,8 @@ WHEN NOT MATCHED THEN INSERT (
   cohort_value,
   ranking,
   percentile,
+  prev_ranking,
+  rank_change,
   created_at,
   updated_at
 ) VALUES (
@@ -136,7 +175,8 @@ WHEN NOT MATCHED THEN INSERT (
   S.cohort_value,
   S.ranking,
   S.percentile,
+  S.prev_ranking,
+  S.rank_change,
   CURRENT_TIMESTAMP(),
   CURRENT_TIMESTAMP()
 );
-

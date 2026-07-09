@@ -3,8 +3,8 @@
 #  Compare a selected channel's performance against other channels in
 #  the selected cohort (e.g., global, subscriber count tier).
 #
-#  Data: leaderboard_rankings (long format with cohort_type / cohort_value)
-#        channel_info         (one row per channel)
+#  Data: benchmark_cache    (global, loaded from GCS RDS)
+#        channel_info       (global, one row per channel)
 # ====================================================================
 
 # UI ----
@@ -84,13 +84,20 @@ growth_benchmarks_server <- function(input, output, session) {
     cv
   })
 
-  # ---- Wide datasets for all channels in the selected cohort (30-day) ----
+  # ---- Filter cached data for the selected cohort (30-day) ----
 
   benchmark_cohort_30d <- reactive({
     req(selected_channel_cohort_value())
     cohort <- input$benchmark_cohort_type %||% "global"
     cv <- selected_channel_cohort_value()
-    get_benchmark_cohort(cohort, cv, 30L, exclude_metric = "lifetime_views_per_vid") %>%
+
+    benchmark_cache %>%
+      filter(
+        cohort_type == cohort,
+        cohort_value == cv,
+        window_days == 30,
+        metric_name != "lifetime_views_per_vid"
+      ) %>%
       pivot_wider(
         id_cols = channel_id,
         names_from = metric_name,
@@ -105,7 +112,13 @@ growth_benchmarks_server <- function(input, output, session) {
     req(selected_channel_cohort_value())
     cohort <- input$benchmark_cohort_type %||% "global"
     cv <- selected_channel_cohort_value()
-    get_benchmark_cohort(cohort, cv, NA_integer_) %>%
+
+    benchmark_cache %>%
+      filter(
+        cohort_type == cohort,
+        cohort_value == cv,
+        is.na(window_days)
+      ) %>%
       pivot_wider(
         id_cols = channel_id,
         names_from = metric_name,
