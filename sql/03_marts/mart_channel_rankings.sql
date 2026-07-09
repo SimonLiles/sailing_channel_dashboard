@@ -121,7 +121,16 @@ USING (
     h.ranking AS prev_ranking,
     h.ranking - r.ranking AS rank_change
   FROM ranked r
-  LEFT JOIN `{{project}}.{{dataset}}.mart_channel_rankings` h
+  LEFT JOIN (
+    SELECT * EXCEPT(rn) FROM (
+      SELECT *,
+        ROW_NUMBER() OVER (
+          PARTITION BY snapshot_date, channel_id, metric_name,
+                       window_days, cohort_type, cohort_value
+        ) AS rn
+      FROM `{{project}}.{{dataset}}.mart_channel_rankings`
+    ) WHERE rn = 1
+  ) h
     ON  h.channel_id    = r.channel_id
     AND h.metric_name   = r.metric_name
     AND h.window_days   IS NOT DISTINCT FROM r.window_days
