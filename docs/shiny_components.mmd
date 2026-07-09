@@ -1,0 +1,77 @@
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph "shiny/"
+        direction TB
+        appR[app.R]
+        globalR[global.R]
+        uiR[ui.R]
+        serverR[server.R]
+
+        subgraph "pages/"
+            NP[niche_pulse.R]
+            CE[creator_explorer.R]
+            LB[leaderboard.R]
+            GB[growth_benchmarks.R]
+            Footer[footer.R]
+        end
+
+        subgraph "utils/"
+            FYS[format_youtube_style.R]
+            FDV[format_dashboard_value.R]
+            RRG[read_rds_from_gcs.R]
+            GCLM[gcs_cache_last_modified.R]
+            RCQ[run_channel_query.R]
+            RLQ[run_leaderboard_query.R]
+        end
+
+        subgraph "www/"
+            FP[favicon.png]
+            OGI[og-image.png]
+            CSS[styles.css]
+        end
+
+        DF[Dockerfile.shiny]
+    end
+
+    subgraph "External/"
+        GCS[("GCS Cache\nglobal_summary.rds\nchannel_info.rds")]
+        BQ[("BigQuery\nleaderboard, benchmarks\nchannel profile/history")]
+        GCP_AUTH[GCP Auth\nService Account / WIF]
+    end
+
+    appR -->|sources| globalR
+    appR -->|sources| uiR
+    appR -->|sources| serverR
+
+    globalR -->|sources| SCRIPT_bq_config["scripts/bq_config.R"]
+    globalR -->|sources| SCRIPT_run_sql["scripts/run_sql.R"]
+    globalR -->|sources| UTL_all["utils/*"]
+    globalR -->|auth| GCP_AUTH
+    globalR -->|reads at startup| RRG
+    RRG -->|downloads from| GCS
+    globalR -->|stores in| GlobalVars[global_summary\nchannel_info]
+
+    uiR -->|sources| PAGES["pages/*"]
+    uiR -->|defines| Navbar[page_navbar\nbs_theme: yeti]
+    Navbar --> NP
+    Navbar --> CE
+    Navbar --> LB
+    Navbar --> GB
+    Navbar --> Footer
+
+    serverR -->|reactivePoll| GCLM
+    GCLM -->|checks freshness| GCS
+    serverR -->|hourly reload| RRG
+    serverR -->|calls| NP_server[niche_pulse_server]
+    serverR -->|calls| CE_server[creator_explorer_server]
+    serverR -->|calls| LB_server[leaderboard_server]
+    serverR -->|calls| GB_server[growth_benchmarks_server]
+
+    NP_server -->|uses| GlobalVars
+    CE_server -->|queries| BQ
+    CE_server -->|uses queries from| RCQ
+    LB_server -->|queries| BQ
+    LB_server -->|uses queries from| RLQ
+    GB_server -->|queries| BQ
+
+    DF -.->|containerizes| SHINY_DIR["shiny/"]

@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.mart_channel_rankings` (
     cohort_value STRING,
     ranking INT64,
     percentile INT64,
+    prev_ranking INT64,
+    rank_change INT64,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
 )

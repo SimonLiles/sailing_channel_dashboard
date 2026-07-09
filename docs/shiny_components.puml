@@ -1,0 +1,103 @@
+@startuml component
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+
+title <size:18><b>Shiny Dashboard</b></size>\nComponent Architecture
+
+package "shiny/" #F3E5F5 {
+  component App as "app.R\nEntry point"
+  component Global as "global.R\nGlobal setup"
+  component UI as "ui.R\nLayout definition"
+  component Server as "server.R\nReactive logic"
+
+  package "pages/" #FFF3E0 {
+    component NP as "niche_pulse.R\nNiche Pulse tab"
+    component CE as "creator_explorer.R\nCreator Explorer tab"
+    component LB as "leaderboard.R\nLeaderboard tab"
+    component GB as "growth_benchmarks.R\nGrowth Benchmarks tab"
+    component Footer as "footer.R\nPage footer"
+  }
+
+  package "utils/" #E8F5E9 {
+    component FYS as "format_youtube_style.R\n1.2K / 3.5M"
+    component FDV as "format_dashboard_value.R\nCommas / %"
+    component RRG as "read_rds_from_gcs.R\nDownload RDS"
+    component GCLM as "gcs_cache_last_modified.R\nCheck timestamp"
+    component RCQ as "run_channel_query.R\nChannel SQL"
+    component RLQ as "run_leaderboard_query.R\nLeaderboard SQL"
+  }
+
+  component WWW as "www/\nfavicon.png\nog-image.png\nstyles.css"
+
+  component Df as "Dockerfile.shiny\nContainer image"
+}
+
+package "External" #E3F2FD {
+  database GCS as "GCS Cache Bucket\nglobal_summary.rds\nchannel_info.rds"
+  database BQ as "Google BigQuery\nLeaderboard queries\nBenchmark queries\nChannel queries"
+  component Auth as "GCP Authentication\nSA key (dev)\nWIF (prod)"
+}
+
+' === External script references ===
+component SCRIPT_BQ as "scripts/bq_config.R"
+component SCRIPT_RS as "scripts/run_sql.R"
+component SHINY_ALL as "shiny/\n(all files)"
+
+' === app.R flow ===
+App -down-> Global : "source()"
+App -down-> UI : "source()"
+App -down-> Server : "source()"
+
+' === global.R ===
+Global -down-> SCRIPT_BQ : "source()"
+Global -down-> SCRIPT_RS : "source()"
+Global -down-> RRG : "source()"
+Global -down-> FYS : "source()"
+Global -down-> FDV : "source()"
+Global -down-> GCLM : "source()"
+Global -down-> RCQ : "source()"
+Global -down-> RLQ : "source()"
+Global -down-> Auth : "authenticates"
+RRG -down-> GCS : "reads at startup"
+
+' === ui.R ===
+UI -down-> NP : "source() -> niche_pulse_ui"
+UI -down-> CE : "source() -> creator_explorer_ui"
+UI -down-> LB : "source() -> leaderboard_ui"
+UI -down-> GB : "source() -> growth_benchmarks_ui"
+UI -down-> Footer : "source() -> footer_ui"
+
+' === server.R ===
+Server -down-> GCLM : "reactivePoll\nchecks freshness"
+GCLM -down-> GCS : "hourly check"
+Server -down-> RRG : "valueFunc\nreloads cache"
+Server -down-> NP : "niche_pulse_server()"
+Server -down-> CE : "creator_explorer_server()"
+Server -down-> LB : "leaderboard_server()"
+Server -down-> GB : "growth_benchmarks_server()"
+
+' === Page data sources ===
+NP -down-> Global : "global_summary"
+CE -down-> RCQ : "run_channel_query()"
+RCQ -down-> BQ : "channel profile/history"
+LB -down-> RLQ : "run_leaderboard_query()"
+RLQ -down-> BQ : "filtered leaderboard"
+GB -down-> BQ : "benchmark cohorts"
+
+' === Docker ===
+Df -down-> SHINY_ALL : "containerizes\nrocker/tidyverse"
+
+legend right
+  <b>Legend</b>
+  <#F3E5F5> Shiny app
+  <#FFF3E0> Page modules
+  <#E8F5E9> Utility modules
+  <#E3F2FD> External services
+  -----
+  ui.R / server.R follow
+  page_ui / page_server pattern
+endlegend
+
+@enduml

@@ -17,19 +17,22 @@ server <- function(input, output, session) {
         gcs_prefix <- config_get("gcs_cache_prefix", "cache")
         gs <- read_rds_from_gcs(paste0(gcs_prefix, "/global_summary.rds"))
         ci <- read_rds_from_gcs(paste0(gcs_prefix, "/channel_info.rds"))
+        bc <- read_rds_from_gcs(paste0(gcs_prefix, "/benchmark_cache.rds"))
       })
       message(paste("GCS reload took", t["elapsed"], "seconds"))
       list(
         global_summary_pull = gs,
-        channel_info_pull   = ci
+        channel_info_pull   = ci,
+        benchmark_cache_pull = bc
       )
     }
   )
 
   observe({
     app_data <- app_data_poll()
-    global_summary <<- app_data$global_summary_pull
-    channel_info   <<- app_data$channel_info_pull
+    global_summary  <<- app_data$global_summary_pull
+    channel_info    <<- app_data$channel_info_pull
+    benchmark_cache <<- app_data$benchmark_cache_pull
     message("Global variables refreshed in background.")
   })
 

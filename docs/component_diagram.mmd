@@ -1,0 +1,47 @@
+%%{init: {'theme': 'dark'}}%%
+flowchart TB
+    subgraph Repo["Repository Root"]
+        direction TB
+        Config[config.yml]
+        DeployScript[deploy.sh]
+        ETL["etl/\nDockerfile.etl + main.R"]
+        Shiny["shiny/\napp.R, global.R, ui.R, server.R\npages/, utils/, www/"]
+        Scripts["scripts/\nconfig.R, bq_config.R, run_sql.R\nget_yt_data.R, migrate_schema.R\nbackfill_marts.R, schema_diff.R\ncall_clone_dataset.R"]
+        SQL["sql/\n00_utils, 01_raw, 02_staging\n03_marts, 04_apps, 05_tests"]
+        Tests["tests/\ntestthat.R + test files"]
+        CI[".github/workflows/deploy.yml"]
+    end
+
+    subgraph External["External Services"]
+        YT_API[YouTube Data API v3]
+        BQ[("Google BigQuery\nyt_sailing_data")]
+        GCS[("Google Cloud Storage\nyt-sailing-dashboard-cache")]
+        CR_ETL[Cloud Run Job\n yt-sailing-channel-etl-job]
+        CR_SHINY[Cloud Run Service\n yt-sailing-shiny]
+        AR["Artifact Registry\nContainer Images"]
+        Scheduler[Cloud Scheduler\nDaily Trigger]
+    end
+
+    Config -->|config_get| Scripts
+    Scripts -->|source| ETL
+    Scripts -->|source| Shiny
+
+    SQL -->|render_sql / run_sql_file| ETL
+    SQL -->|run_channel_query| Shiny
+
+    CI -->|Test| Tests
+    CI -->|Build and Push| AR
+    CI -->|Migrate Schema + Backfill| CR_ETL
+    CI -->|Deploy| CR_SHINY
+
+    ETL -->|Runs inside| CR_ETL
+    Shiny -->|Runs inside| CR_SHINY
+
+    CR_ETL -->|HTTP GET| YT_API
+    YT_API -->|Channel Stats| CR_ETL
+    CR_ETL -->|Read/Write Tables| BQ
+    CR_ETL -->|Write RDS Cache| GCS
+    CR_SHINY -->|Read RDS Cache| GCS
+    CR_SHINY -->|Parameterized Queries| BQ
+
+    Scheduler -->|Triggers Daily| CR_ETL

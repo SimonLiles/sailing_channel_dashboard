@@ -131,7 +131,6 @@ run_sql_file(connection,
 
 # 04_Apps layer: parameterless CREATE OR REPLACE tables
 message("--- 04_Apps Layer ---")
-run_sql_file(connection, here("sql", "04_apps", "get_leaderboard.sql"))
 run_sql_file(connection, here("sql", "04_apps", "get_global_summary.sql"))
 run_sql_file(connection, here("sql", "04_apps", "get_channel_lookup.sql"))
 
@@ -163,8 +162,6 @@ rm(raw_yt_data, raw_yt_data_list, channels)
 gc()
 
 # Download + upload each cache table sequentially, freeing memory between
-# NOTE: leaderboard is NOT cached here — the Shiny app queries BigQuery
-# directly for filtered slices to avoid loading the full table into R memory.
 gcs_prefix <- config_get("gcs_cache_prefix", "cache")
 cache_tables <- list(
   list(bq_name = "global_summary",  gcs_name = paste0(gcs_prefix, "/global_summary.rds")),
@@ -175,6 +172,18 @@ for (tbl in cache_tables) {
   upload_as_rds(data, tbl$gcs_name)
   rm(data); gc()
 }
+
+# Benchmark cache: a lightweight table for the Growth Benchmarks page.
+# This is a parameterised query result (not a table), so we run it with
+# dbGetQuery instead of bq_table_download.
+message("--- Benchmark Cache ---")
+benchmark_cache_sql <- render_sql(
+  here("sql", "04_apps", "get_benchmark_cache.sql"),
+  project = project, dataset = dataset
+)
+benchmark_cache <- dbGetQuery(connection, benchmark_cache_sql)
+upload_as_rds(benchmark_cache, paste0(gcs_prefix, "/benchmark_cache.rds"))
+rm(benchmark_cache); gc()
 
 message("GCS cache write complete.")
 

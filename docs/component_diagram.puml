@@ -1,0 +1,102 @@
+@startuml component
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+
+title <size:18><b>Sailing Channel Dashboard</b></size>\nComponent-Level Diagram
+
+package "Repository Root" #E8F5E9 {
+  component Config as "config.yml\nproject, dataset, window_days\ngcs_bucket, gcs_cache_prefix"
+  component DeployScript as "deploy.sh\nBuild & push Docker images"
+
+  package "etl/" as ETL {
+    component ETL_DF as "Dockerfile.etl"
+    component ETL_R as "main.R"
+  }
+
+  package "shiny/" as Shiny {
+    component ShinyApp as "app.R"
+    component ShinyGlobal as "global.R"
+    component ShinyUI as "ui.R"
+    component ShinyServer as "server.R"
+    component ShinyPages as "pages/\nniche_pulse.R\nleaderboard.R\ngrowth_benchmarks.R\ncreator_explorer.R\nfooter.R"
+    component ShinyUtils as "utils/\nformat_*.R\nread_rds_from_gcs.R\nrun_*_query.R"
+    component ShinyWWW as "www/\nfavicon.png\nog-image.png\nstyles.css"
+    component ShinyDF as "Dockerfile.shiny"
+  }
+
+  package "scripts/" as Scripts {
+    component S1 as "config.R"
+    component S2 as "bq_config.R"
+    component S3 as "run_sql.R"
+    component S4 as "get_yt_data.R"
+    component S5 as "migrate_schema.R"
+    component S6 as "backfill_marts.R"
+    component S7 as "schema_diff.R"
+    component S8 as "call_clone_dataset.R"
+  }
+
+  package "sql/" as SQL {
+    component SQL00 as "00_utils/\nget_channel_ids.sql\nclone_dataset.sql"
+    component SQL01 as "01_raw/\nDDL + ops\nmerge/append"
+    component SQL02 as "02_staging/\nvw_stg_daily_metrics"
+    component SQL03 as "03_marts/\nfct + mart tables\ncohorts, rankings"
+    component SQL04 as "04_apps/\nglobal_summary\nleaderboard\nchannel queries"
+    component SQL05 as "05_tests/"
+  }
+
+  component Tests as "tests/\ntestthat.R\nR unit tests"
+
+  package ".github/workflows/" as CI {
+    component Workflow as "deploy.yml\nTest > Build > Migrate > Deploy"
+  }
+}
+
+package "External Services" #E3F2FD {
+  component YT as "YouTube Data API v3\nREST API"
+  database BQ as "Google BigQuery\nyt_sailing_data[_dev]"
+  database GCS as "Google Cloud Storage\nyt-sailing-dashboard-cache"
+  component CRJ as "Cloud Run Job\nETL Container"
+  component CRS as "Cloud Run Service\nShiny Container"
+  component AR as "Artifact Registry\nContainer Images"
+  component CS as "Cloud Scheduler\nDaily Trigger"
+}
+
+' === Internal relationships ===
+Config -down-> Scripts : "config_get()"
+Scripts -down-> ETL_R : "source()"
+Scripts -down-> ShinyGlobal : "source()"
+SQL -down-> ETL_R : "render_sql() / run_sql_file()"
+SQL -down-> ShinyUtils : "run_*_query()"
+
+' === CI/CD ===
+CI -down-> Tests : "1. Run tests"
+CI -right-> AR : "2. Build & Push images"
+CI -down-> CRJ : "3. Migrate + Backfill"
+CI -down-> CRS : "4. Deploy Shiny"
+
+' === Container relationships ===
+ETL_R -left-> CRJ : "runs inside"
+ShinyApp -left-> CRS : "runs inside"
+
+' === External flows ===
+CRJ -down-> YT : "HTTP GET per channel"
+YT -up-> CRJ : "Channel stats JSON"
+CRJ -down-> BQ : "Read/Write tables\nraw, staging, mart, apps"
+CRJ -down-> GCS : "Write RDS cache"
+CRS -down-> GCS : "Read RDS cache"
+CRS -down-> BQ : "Parameterized queries"
+
+CS -right-> CRJ : "Triggers daily ETL run"
+
+legend right
+  <b>Legend</b>
+  <#E8F5E9> Repository components
+  <#E3F2FD> External / GCP services
+  -----
+  Components shown with
+  their primary purpose
+endlegend
+
+@enduml
