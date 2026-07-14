@@ -34,7 +34,7 @@ flowchart TB
     end
 
     subgraph "External/"
-        GCS[("GCS Cache\nglobal_summary.rds\nchannel_info.rds")]
+        GCS[("GCS Cache\nglobal_summary.rds\nchannel_info.rds\nbenchmark_cache.rds")]
         BQ[("BigQuery\nleaderboard, benchmarks\nchannel profile/history")]
         GCP_AUTH[GCP Auth\nService Account / WIF]
     end

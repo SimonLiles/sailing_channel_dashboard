@@ -35,7 +35,7 @@ package "shiny/" #F3E5F5 {
 }
 
 package "External" #E3F2FD {
-  database GCS as "GCS Cache Bucket\nglobal_summary.rds\nchannel_info.rds"
+  database GCS as "GCS Cache Bucket\nglobal_summary.rds\nchannel_info.rds\nbenchmark_cache.rds"
   database BQ as "Google BigQuery\nLeaderboard queries\nBenchmark queries\nChannel queries"
   component Auth as "GCP Authentication\nSA key (dev)\nWIF (prod)"
 }
