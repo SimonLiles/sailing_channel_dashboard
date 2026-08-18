@@ -1,0 +1,66 @@
+@startuml uc_admin_04_audit
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+skinparam actorStyle awesome
+
+title <size:18><b>Domain 4 — Audit</b></size>\nUse Case Detail
+
+left to right direction
+
+actor "Owner" as Owner #E8F5E9
+actor "Super Admin" as SuperAdmin #E3F2FD
+
+rectangle "Administration System" {
+
+  package "Audit Trail" as AuditPkg #F3E5F5 {
+    usecase "UC-4.1\nView Audit\nLog" as UC41
+  }
+}
+
+database "CloudSQL\nAudit Records" as CloudSQL #F3E5F5
+
+' === Actor connections ===
+Owner --> UC41
+SuperAdmin --> UC41
+
+' === System connections ===
+UC41 ..> CloudSQL : <<include>>\nRead-only query
+
+' === Notes ===
+note bottom of UC41
+  **Access restricted to:**
+  Owner and Super Admin only.
+  Channel Managers and Analysts
+  are excluded.
+  -----
+  **Properties:**
+  - Append-only from app perspective
+  - Cannot be edited or deleted
+  - Retained indefinitely (V1)
+end note
+
+note right of UC41
+  **Recorded fields:**
+  - Actor + role at time of action
+  - Timestamp
+  - Action
+  - Target entity type + ID
+  - Outcome
+  - Before/after state
+  - Error info
+  - Import ID (bulk ops)
+end note
+
+note bottom of CloudSQL
+  **Audit records are immutable:**
+  BR-016: Cannot be edited or
+  deleted through the application.
+  BR-017: Retained indefinitely.
+  NFR-002: Every mutation is
+  traceable to an authenticated
+  administrator.
+end note
+
+@enduml
