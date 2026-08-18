@@ -1,0 +1,50 @@
+@startuml ac_uc_2_4_reactivate_channel
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFE0B2
+  DiamondBorderColor #E65100
+}
+
+title <size:18><b>UC-2.4 — Reactivate Channel</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Channel\nInventory;
+:Select inactive channel;
+:Select "Reactivate";
+
+|System|
+if (Channel exists\nand is inactive?) then (yes)
+else (no)
+  if (Channel\nnot found?) then (yes)
+    :Display error:\nchannel not found;
+  else (no)
+    :Inform administrator:\nchannel is already active;
+  endif
+  stop
+endif
+
+:Display channel details\nand reactivation prompt;
+note right: BR-011: Explicit confirmation\nrequired for inactive channels
+
+|Actor|
+if (Confirms\nreactivation?) then (yes)
+else (no)
+  |System|
+  :Take no action;\nchannel remains inactive;
+  stop
+endif
+
+|System|
+:Set is_active = TRUE\nin channel_dimensions;
+:Preserve historical data;
+note right: BR-012: Collected by next\nscheduled ETL run
+:Record audit event:\nChannel reactivated;
+:Display confirmation;
+stop
+
+@enduml

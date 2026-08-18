@@ -1,0 +1,49 @@
+@startuml ac_uc_3_6_channel_interest
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  DiamondBackgroundColor #BBDEFB
+  DiamondBorderColor #1565C0
+}
+
+title <size:18><b>UC-3.6 — View Channel Interest Analytics</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Usage Analytics\npage — Channel Interest section;
+
+|System|
+if (Channel interest\ndata available?) then (yes)
+else (no)
+  :Display message:\nno channel interest data available;
+  stop
+endif
+
+:Retrieve channel\ninterest analytics;
+note right
+  V1: Channel interest = user
+  looking up a channel via
+  Channel Explorer or
+  Growth Benchmarks.
+
+  Selecting a channel from a
+  leaderboard does NOT count.
+end note
+
+:Display aggregated\nchannel interest data;
+note right
+  Event contains:
+  - Channel ID
+  - Originating dashboard
+    context/page
+end note
+
+|Actor|
+:Review which channels\nare generating interest;
+note right: BR-018: Analytics are\naggregated and\nprivacy-preserving
+stop
+
+@enduml

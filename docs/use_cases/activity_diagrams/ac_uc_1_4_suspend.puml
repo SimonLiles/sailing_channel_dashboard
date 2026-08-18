@@ -1,0 +1,45 @@
+@startuml ac_uc_1_4_suspend
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.4 — Suspend Administrator</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Administration /\nUsers page;
+:Select target administrator;
+:Select "Suspend";
+
+|System|
+if (Target is\nthe Owner?) then (yes)
+  :Reject operation;
+  :Display error: "The Owner account\ncannot be suspended.";
+  note right: BR-003
+  stop
+elseif (Target already\nsuspended?) then (yes)
+  :Inform administrator\naccount is already suspended;
+  stop
+else (no)
+endif
+
+:Display target administrator's\naccount details;
+:Prompt administrator\nto confirm suspension;
+
+|Actor|
+:Confirm suspension;
+
+|System|
+:Set target account status\nto "Suspended" in CloudSQL;
+:Terminate any active session\nfor suspended administrator;
+:Record audit event:\nAdministrator suspended;
+:Display confirmation;
+stop
+
+@enduml

@@ -1,0 +1,64 @@
+@startuml ac_uc_4_1_audit_log
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #F3E5F5
+  BorderColor #6A1B9A
+  DiamondBackgroundColor #E1BEE7
+  DiamondBorderColor #6A1B9A
+}
+
+title <size:18><b>UC-4.1 — View Audit Log</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to\nAudit Log page;
+
+|System|
+if (Actor is Owner\nor Super Admin?) then (yes)
+else (no)
+  :Deny access;
+  note right: EF-2: Channel Manager\nand Analyst cannot\naccess audit log
+  stop
+endif
+
+if (Audit data\navailable in CloudSQL?) then (yes)
+else (no)
+  :Display error:\naudit data unavailable;
+  stop
+endif
+
+:Query CloudSQL for\nadministrative audit records;
+
+:Display audit log;
+note right
+  Each entry contains:
+  - Actor, Actor role, Timestamp
+  - Action, Target entity type
+  - Target identifier, Outcome
+  - Before/after state
+  - Error info (if applicable)
+  - Operation/import ID
+    (if applicable)
+
+  Bulk operations also show:
+  - Import ID, File type
+  - Row/successful/failed counts
+  - Per-row outcomes
+end note
+note right: BR-016: Audit records are\nappend-only; cannot be\nedited or deleted
+note right: BR-017: Audit history\nretained indefinitely (V1)
+
+|Actor|
+if (Filters\napplied?) then (yes)
+  :Specify filter criteria\n(actor, action, date range,\ntarget entity);
+  |System|
+  :Apply filters and\nrefresh audit log;
+else (no)
+endif
+
+:Review administrative\naudit history;
+stop
+
+@enduml

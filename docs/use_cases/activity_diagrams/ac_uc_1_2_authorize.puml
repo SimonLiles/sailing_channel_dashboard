@@ -1,0 +1,29 @@
+@startuml ac_uc_1_2_authorize
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.2 — Authorize Administrator</b></size>\nActivity Diagram
+
+|System|
+start
+:Retrieve authenticated user's\nadministrative account from CloudSQL;
+:Read assigned role\nfor the account;
+:Evaluate role's permitted\ncapabilities against\nrequested resource/action;
+if (Role permits\nrequested capability?) then (yes)
+  :Grant access;
+  :Render UI elements and\nnavigation appropriate to role;
+  stop
+else (no)
+  :Deny access to resource;
+  :Do not render UI elements\nfor unauthorized capabilities;
+  stop
+endif
+
+@enduml

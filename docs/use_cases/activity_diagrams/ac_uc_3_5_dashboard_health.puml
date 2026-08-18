@@ -1,0 +1,52 @@
+@startuml ac_uc_3_5_dashboard_health
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  DiamondBackgroundColor #BBDEFB
+  DiamondBorderColor #1565C0
+}
+
+title <size:18><b>UC-3.5 — View Dashboard Health</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to\nSystem Health page;
+
+|System|
+if (Health data\navailable?) then (yes)
+else (no)
+  :Display indicator:\nhealth data unavailable;
+  stop
+endif
+
+:Retrieve application health\nindicators for public dashboard;
+fork
+  :Retrieve availability,\nerrors, HTTP status,\nlatency, failures;
+fork again
+  :Check YouTube Data API\nfailures affecting data product;
+end fork
+
+:Display dashboard health;
+note right
+  Application health:
+  - Availability
+  - Recent request errors
+  - HTTP error status
+  - Latency indicators
+  - Recent failures
+
+  YouTube API issues:
+  - Auth/authz failures
+  - Quota failures
+  - Request failures
+  - Channel lookup failures
+end note
+
+|Actor|
+:Review dashboard health\nto determine if public\ndashboard is operating normally;
+stop
+
+@enduml

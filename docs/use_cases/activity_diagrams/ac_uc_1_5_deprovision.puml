@@ -1,0 +1,46 @@
+@startuml ac_uc_1_5_deprovision
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.5 — Deprovision Administrator</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Administration /\nUsers page;
+:Select target administrator;
+:Select "Deprovision";
+
+|System|
+if (Target is\nthe Owner?) then (yes)
+  :Reject operation;
+  :Display error: "The Owner account\ncannot be deprovisioned.";
+  note right: BR-003
+  stop
+elseif (Target already\ndeprovisioned?) then (yes)
+  :Inform administrator\naccount is already deprovisioned;
+  stop
+else (no)
+endif
+
+:Display target administrator's\naccount details;
+:Warn that deprovisioning is\npermanent; prompt for\nexplicit confirmation;
+
+|Actor|
+:Confirm deprovisioning;
+
+|System|
+:Set target account status\nto "Deprovisioned" in CloudSQL;
+:Terminate any active session\nfor deprovisioned administrator;
+:Preserve account record\nand associated audit history;
+:Record audit event:\nAdministrator deprovisioned;
+:Display confirmation;
+stop
+
+@enduml

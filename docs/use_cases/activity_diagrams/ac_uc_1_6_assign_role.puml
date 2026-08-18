@@ -1,0 +1,48 @@
+@startuml ac_uc_1_6_assign_role
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.6 — Assign Role</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Administration /\nUsers page;
+:Select target administrator;
+:Select "Change Role";
+
+|System|
+:Display target administrator's\ncurrent account details and role;
+:Present available roles;
+
+|Actor|
+:Select a new role;
+
+|System|
+if (Target is\nthe Owner?) then (yes)
+  :Reject: Owner's role cannot\nbe changed;
+  note right: BR-003
+  stop
+elseif (New role same\nas current role?) then (yes)
+  :Inform administrator\nno change is needed;
+  stop
+elseif (Actor is Super Admin\nand role is Owner?) then (yes)
+  :Reject: Super Admin\ncannot assign Owner;
+  note right: BR-004
+  stop
+else (no)
+endif
+
+:Update target account's\nrole in CloudSQL;
+:Role change takes effect\nimmediately;
+:Record audit event:\nAdministrator role changed;
+:Display confirmation;
+stop
+
+@enduml

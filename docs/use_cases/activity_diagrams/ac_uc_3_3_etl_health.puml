@@ -1,0 +1,44 @@
+@startuml ac_uc_3_3_etl_health
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  DiamondBackgroundColor #BBDEFB
+  DiamondBorderColor #1565C0
+}
+
+title <size:18><b>UC-3.3 — View ETL Health</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to System Health\npage or Admin Home Dashboard;
+
+|System|
+if (ETL metadata\navailable?) then (yes)
+else (no)
+  :Display indicator:\nETL metadata unavailable;
+  stop
+endif
+
+:Retrieve ETL operational\nhealth data;
+
+:Display ETL health information;
+note right
+  Information includes:
+  - Last scheduled execution
+  - Last successful execution
+  - Execution duration
+  - Data freshness
+  - Channels processed
+  - Successful / failed channels
+  - Relevant error info
+end note
+note right: BR-019: No controls to trigger,\ncancel, retry, or modify\nETL configuration
+
+|Actor|
+:Review ETL operational health;
+stop
+
+@enduml

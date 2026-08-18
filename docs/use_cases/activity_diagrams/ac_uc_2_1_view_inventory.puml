@@ -1,0 +1,53 @@
+@startuml ac_uc_2_1_view_inventory
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFE0B2
+  DiamondBorderColor #E65100
+}
+
+title <size:18><b>UC-2.1 — View Channel Inventory</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Channel\nInventory page;
+
+|System|
+:Query BigQuery channel_dimensions\nfor all tracked channels;
+if (BigQuery\navailable?) then (yes)
+  :Display Channel Inventory page\nwith all channels;
+  note right
+    Per channel:
+    - Title, Handle, Channel ID
+    - Active/Inactive status
+    - Date added, Added by
+    - Last updated
+    - ETL status
+  end note
+else (no)
+  :Display data source\nunavailable error;
+  stop
+endif
+
+|Actor|
+if (Filters\napplied?) then (yes)
+  :Specify filter criteria\n(status, date range, etc.);
+  |System|
+  :Apply filters and\nrefresh display;
+else (no)
+endif
+
+if (Search\nperformed?) then (yes)
+  :Enter search term\n(title, handle, or ID);
+  |System|
+  :Search and\nrefresh display;
+else (no)
+endif
+
+:View channel inventory;\nactions available per role;
+stop
+
+@enduml

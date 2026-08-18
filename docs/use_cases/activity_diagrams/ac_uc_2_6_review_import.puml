@@ -1,0 +1,54 @@
+@startuml ac_uc_2_6_review_import
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFE0B2
+  DiamondBorderColor #E65100
+}
+
+title <size:18><b>UC-2.6 — Review Bulk Import</b></size>\nActivity Diagram
+
+|System|
+start
+:Display import preview\nwith each row classified;
+note right
+  Classifications:
+  - New channel (will be added)
+  - Existing active (no action)
+  - Existing inactive (needs decision)
+  - Invalid handle
+  - YouTube API error
+  - Quota error
+  - Other error
+  - Duplicate entry
+end note
+
+|Actor|
+if (All rows invalid\nor duplicates?) then (yes)
+  :System informs administrator;\ncommit step unavailable;
+  stop
+else (no)
+endif
+
+:Review each classification;
+
+if (Existing inactive\nchannels present?) then (yes)
+  :Explicitly select whether to\nreactivate each inactive channel;
+else (no)
+endif
+
+:Confirm import to proceed;
+
+|System|
+if (Confirms\nimport?) then (yes)
+  :Proceed to commit\n(UC-2.5 steps 8-9);
+  stop
+else (no)
+  :Take no action;
+  stop
+endif
+
+@enduml

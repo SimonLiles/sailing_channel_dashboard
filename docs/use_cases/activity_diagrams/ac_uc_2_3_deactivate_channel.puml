@@ -1,0 +1,56 @@
+@startuml ac_uc_2_3_deactivate_channel
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFE0B2
+  DiamondBorderColor #E65100
+}
+
+title <size:18><b>UC-2.3 — Deactivate Channel</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Channel\nInventory;
+:Select active channel;
+:Select "Deactivate";
+
+|System|
+if (Channel exists\nand is active?) then (yes)
+else (no)
+  if (Channel\nnot found?) then (yes)
+    :Display error:\nchannel not found;
+  else (no)
+    :Inform administrator:\nchannel is already inactive;
+  endif
+  stop
+endif
+
+:Display channel details\nand deactivation warning;
+note right
+  Warning:
+  - Excluded from public dashboard
+  - ETL collection will cease
+  - Historical data preserved
+  - Record preserved
+end note
+
+|Actor|
+if (Confirms\ndeactivation?) then (yes)
+else (no)
+  |System|
+  :Take no action;
+  stop
+endif
+
+|System|
+:Set is_active = FALSE\nin channel_dimensions;
+:Exclude channel from\nactive public dashboard;
+:Prevent future ETL collection\nfor this channel;
+:Record audit event:\nChannel deactivated;
+:Display confirmation;
+stop
+
+@enduml

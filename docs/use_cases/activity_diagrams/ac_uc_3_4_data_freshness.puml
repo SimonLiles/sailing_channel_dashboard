@@ -1,0 +1,41 @@
+@startuml ac_uc_3_4_data_freshness
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  DiamondBackgroundColor #BBDEFB
+  DiamondBorderColor #1565C0
+}
+
+title <size:18><b>UC-3.4 — View Data Freshness</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to\nSystem Health page;
+
+|System|
+if (Freshness data\navailable?) then (yes)
+else (no)
+  :Display indicator:\ndata freshness unavailable;
+  stop
+endif
+
+:Query BigQuery for\nanalytical data freshness indicators;
+
+:Display data freshness;
+note right
+  Indicators:
+  - Most recent analytical date
+  - Current relative to ETL schedule?
+  - Recent ETL populated product?
+  - Significant channel-processing
+    failures?
+end note
+
+|Actor|
+:Review data freshness\nto determine if analytical\ndata product is current;
+stop
+
+@enduml

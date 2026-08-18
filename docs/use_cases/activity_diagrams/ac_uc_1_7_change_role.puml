@@ -1,0 +1,43 @@
+@startuml ac_uc_1_7_change_role
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.7 — Change Role</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Administration /\nUsers page;
+:Initiate role change\non target administrator;
+
+|System|
+:Display target administrator's\ncurrent role;
+
+|Actor|
+:Select new role\nfrom available options;
+
+|System|
+:Validate change against\nauthorization rules;
+if (Self-elevation\nattempted?) then (yes)
+  :Reject operation;
+  note right: BR-004
+  stop
+elseif (Validation\npassed?) then (yes)
+else (no)
+  :Reject operation;\ndisplay error;
+  stop
+endif
+
+:Update role in CloudSQL;
+:Change takes effect immediately\nor on next authorization evaluation;
+:Record audit event with\nprevious and new role;
+:Display confirmation;
+stop
+
+@enduml

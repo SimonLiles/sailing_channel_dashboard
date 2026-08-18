@@ -1,0 +1,53 @@
+@startuml ac_uc_1_3_provision
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.3 — Provision Administrator</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Administration /\nUsers page;
+:Select "Provision\nNew Administrator";
+
+|System|
+:Display provisioning\nform;
+
+|Actor|
+:Enter target user's Google\nidentity information;
+:Select role for\nnew account;
+
+|System|
+:Validate input;
+
+if (Identity already\nprovisioned?) then (yes)
+  :Inform administrator\nof duplicate identity;
+  stop
+elseif (Invalid role\nor missing fields?) then (yes)
+  :Display validation error;\nretain form state;
+  stop
+elseif (Actor is Super Admin\nand role is Owner?) then (yes)
+  :Reject: Super Admin\ncannot create Owner;
+  note right: BR-004
+  stop
+else (no)
+endif
+
+:Create administrative account\nin CloudSQL;
+note right
+  - Identity provider identifier
+  - Email address
+  - Assigned role
+  - Status: Active
+end note
+:Record audit event:\nAdministrator created;
+:Display confirmation;
+stop
+
+@enduml

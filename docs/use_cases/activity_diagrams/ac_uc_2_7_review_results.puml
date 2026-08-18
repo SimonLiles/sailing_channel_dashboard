@@ -1,0 +1,37 @@
+@startuml ac_uc_2_7_review_results
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFE0B2
+  DiamondBorderColor #E65100
+}
+
+title <size:18><b>UC-2.7 — Review Import Results</b></size>\nActivity Diagram
+
+|System|
+start
+:Generate results report;
+note right
+  Report includes:
+  - Total rows
+  - Successfully added
+  - Successfully reactivated
+  - Already active
+  - Invalid handles
+  - API errors
+  - Other errors
+  - Duplicate rows
+end note
+
+:Display report\nto administrator;
+
+:Provide row-level detail\nfor unsuccessful operations;
+
+|Actor|
+:Review import\nresults;
+stop
+
+@enduml

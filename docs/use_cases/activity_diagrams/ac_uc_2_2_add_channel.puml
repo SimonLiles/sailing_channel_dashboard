@@ -1,0 +1,81 @@
+@startuml ac_uc_2_2_add_channel
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFE0B2
+  DiamondBorderColor #E65100
+}
+
+title <size:18><b>UC-2.2 — Add Channel</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Add\nChannel page;
+
+|System|
+:Display Add Channel\nform;
+
+|Actor|
+:Enter YouTube\nchannel handle;
+
+|System|
+:Validate handle format;
+if (Handle\nvalid?) then (yes)
+else (no)
+  :Display error:\ninvalid handle;
+  stop
+endif
+
+:Resolve handle to YouTube\nchannel_id via YouTube Data API;
+if (API call\nsuccessful?) then (yes)
+else (no)
+  if (Quota\nexceeded?) then (yes)
+    :Display quota-specific error;
+  else (no)
+    :Display API error\nwith details;
+  endif
+  stop
+endif
+
+:Check channel_dimensions\nin BigQuery for existing record;
+if (Existing active\nrecord?) then (yes)
+  :Inform administrator:\nchannel already tracked and active;
+  note right: AF-1: No duplicate created
+  stop
+elseif (Existing inactive\nrecord?) then (yes)
+  :Inform administrator:\nchannel is inactive;
+  :Request explicit confirmation\nto reactivate;
+  |Actor|
+  if (Confirms\nreactivation?) then (yes)
+    |System|
+    :Set is_active = TRUE;
+    :Preserve historical data;
+    note right: AF-2: Channel resumes\ncollection on next ETL
+  else (no)
+    :Take no action;
+    stop
+  endif
+else (no)
+  |System|
+  :Retrieve YouTube-derived\nmetadata;
+  note right
+    Title, description,
+    join date, subscriber
+    visibility, keywords,
+    profile picture
+  end note
+endif
+
+|Actor|
+:Review channel\ninformation;
+:Confirm addition;
+
+|System|
+:Insert channel into BigQuery\nchannel_dimensions\n(is_active = TRUE);
+:Record audit event:\nChannel added;
+stop
+
+@enduml

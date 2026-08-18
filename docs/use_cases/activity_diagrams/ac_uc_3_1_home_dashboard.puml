@@ -1,0 +1,50 @@
+@startuml ac_uc_3_1_home_dashboard
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  DiamondBackgroundColor #BBDEFB
+  DiamondBorderColor #1565C0
+}
+
+title <size:18><b>UC-3.1 — View Admin Home Dashboard</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Administration\nSystem home page;
+
+|System|
+:Query data sources;
+fork
+  :Query Google Analytics\nfor visitor activity;
+fork again
+  :Query ETL metadata\nfor execution status;
+fork again
+  :Query Cloud Run\nfor application health;
+end fork
+
+:Assemble Admin\nHome Dashboard;
+note right
+  Dashboard sections:
+  - Dashboard: visitors, sessions,
+    unique users, recent activity,
+    popular channels
+  - ETL: last execution, data
+    freshness, failures
+  - System: availability, health,
+    recent errors
+end note
+
+if (All data\nsources available?) then (yes)
+  :Display complete\ndashboard overview;
+else (no)
+  :Display available data\nwith status indicators\nfor unavailable sources;
+endif
+
+|Actor|
+:Review operational overview;\n"Is the Sailing Channel Dashboard\noperating correctly right now?";
+stop
+
+@enduml

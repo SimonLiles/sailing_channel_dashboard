@@ -1,0 +1,49 @@
+@startuml ac_uc_1_1_authenticate
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.1 — Authenticate Administrator</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Administration\nSystem URL;
+:System presents\nsign-in page;
+:Initiate Google\nauthentication;
+
+|System|
+:Redirect to Google\nIdentity Provider;
+
+|Actor|
+:Authenticate with\nGoogle credentials;
+
+|Google Identity Provider|
+:Validate credentials;
+if (Authentication\nsuccessful?) then (yes)
+  :Return authenticated identity\n(identity provider ID, email);
+else (no)
+  |System|
+  :Display authentication\nerror message;
+  stop
+endif
+
+|System|
+:Receive authenticated\nidentity;
+:Look up identity provider\nidentifier in CloudSQL;
+if (Active administrative\naccount found?) then (yes)
+  :Establish authenticated\nsession;
+  :Proceed to UC-1.2\n(Authorize Administrator);
+  stop
+else (no)
+  :Display "access denied"\nmessage;
+  note right: BR-005: Google auth does\nnot auto-create accounts
+  stop
+endif
+
+@enduml
