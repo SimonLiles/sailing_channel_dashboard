@@ -1,0 +1,41 @@
+@startuml UC-3.4_view_data_freshness
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-3.4 — View Data Freshness
+
+actor "Owner / Super Admin /\nChannel Manager / Analyst" as Actor
+participant "System Health\n[presentation]" as SystemHealthUI
+participant "Health Monitoring Service\n[application]" as HealthSvc
+database "BigQuery\n[data store]" as BQ
+
+Actor -> SystemHealthUI : navigate to System Health page
+activate SystemHealthUI
+
+SystemHealthUI -> HealthSvc : get data freshness
+activate HealthSvc
+
+HealthSvc -> BQ : query analytical data\nfreshness indicators
+activate BQ
+
+alt Freshness data available
+  BQ --> HealthSvc : freshness data\n(most recent date, currency\nvs schedule, ETL success,\nchannel processing failures)
+  deactivate BQ
+
+  HealthSvc --> SystemHealthUI : freshness indicators
+  deactivate HealthSvc
+
+  SystemHealthUI -> SystemHealthUI : display data freshness
+
+  SystemHealthUI --> Actor : show data freshness page
+  deactivate SystemHealthUI
+
+else Freshness data unavailable
+  BQ --> HealthSvc : error
+  deactivate BQ
+  HealthSvc --> SystemHealthUI : Failure(DataUnavailable)
+  deactivate HealthSvc
+  SystemHealthUI --> Actor : show "data freshness\nunavailable" indicator
+  deactivate SystemHealthUI
+end
+
+@enduml

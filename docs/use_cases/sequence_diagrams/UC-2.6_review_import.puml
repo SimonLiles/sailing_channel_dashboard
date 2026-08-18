@@ -1,0 +1,45 @@
+@startuml UC-2.6_review_import
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-2.6 — Review Bulk Import
+
+participant "Bulk Import\n[presentation]" as BulkImportUI
+participant "Bulk Import Service\n[application]" as BulkImportSvc
+actor "Owner / Super Admin /\nChannel Manager" as Actor
+
+note over BulkImportUI
+  Triggered after UC-2.5 validates
+  the uploaded spreadsheet (steps 1–5).
+end note
+
+BulkImportSvc -> BulkImportUI : send classified preview
+activate BulkImportUI
+
+BulkImportUI -> BulkImportUI : display import preview\nwith row classifications
+
+alt All rows invalid or duplicates
+  BulkImportUI --> Actor : inform: all rows invalid;\ncommit step unavailable
+  deactivate BulkImportUI
+  stop
+
+else Proceedable rows exist
+end
+
+Actor -> BulkImportUI : review each classification
+
+alt Existing inactive channels present
+  Actor -> BulkImportUI : explicitly select whether\nto reactivate each inactive channel
+else No inactive channels
+end
+
+Actor -> BulkImportUI : confirm import to proceed
+
+alt Does not confirm
+  BulkImportUI --> Actor : take no action
+else Confirms import — proceed
+  BulkImportUI --> Actor : proceed to commit\n(UC-2.5 steps 8–9)
+end
+
+deactivate BulkImportUI
+
+@enduml

@@ -1,0 +1,67 @@
+@startuml UC-3.2_view_usage_analytics
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-3.2 — View Usage Analytics
+
+actor "Owner / Super Admin /\nAnalyst" as Actor
+participant "Usage Analytics\n[presentation]" as UsageAnalyticsUI
+participant "Analytics Service\n[application]" as AnalyticsSvc
+database "Google Analytics\n[external]" as GA
+
+Actor -> UsageAnalyticsUI : navigate to Usage Analytics page
+activate UsageAnalyticsUI
+
+UsageAnalyticsUI -> AnalyticsSvc : get usage analytics
+activate AnalyticsSvc
+
+AnalyticsSvc -> GA : query aggregated usage data\n(unique users, sessions,\npage views, geographic,\ndevice, acquisition source)
+activate GA
+
+alt Google Analytics available
+  GA --> AnalyticsSvc : usage metrics
+  deactivate GA
+
+  AnalyticsSvc --> UsageAnalyticsUI : usage analytics
+  deactivate AnalyticsSvc
+
+  UsageAnalyticsUI -> UsageAnalyticsUI : display usage analytics
+
+  UsageAnalyticsUI --> Actor : show analytics page\n(BR-018: aggregated, no PII)
+  deactivate UsageAnalyticsUI
+
+  alt Custom date range needed
+    Actor -> UsageAnalyticsUI : specify custom date range
+    UsageAnalyticsUI -> AnalyticsSvc : re-query with custom range
+    activate AnalyticsSvc
+    AnalyticsSvc -> GA : query with date range
+    activate GA
+    GA --> AnalyticsSvc : filtered metrics
+    deactivate GA
+    AnalyticsSvc --> UsageAnalyticsUI : updated analytics
+    deactivate AnalyticsSvc
+    UsageAnalyticsUI --> Actor : refresh display
+  end
+
+  alt Different predefined time range
+    Actor -> UsageAnalyticsUI : select predefined time range
+    UsageAnalyticsUI -> AnalyticsSvc : re-query with selected range
+    activate AnalyticsSvc
+    AnalyticsSvc -> GA : query with time range
+    activate GA
+    GA --> AnalyticsSvc : filtered metrics
+    deactivate GA
+    AnalyticsSvc --> UsageAnalyticsUI : updated analytics
+    deactivate AnalyticsSvc
+    UsageAnalyticsUI --> Actor : refresh display
+  end
+
+else Google Analytics unavailable
+  GA --> AnalyticsSvc : error
+  deactivate GA
+  AnalyticsSvc --> UsageAnalyticsUI : Failure(DataSourceUnavailable)
+  deactivate AnalyticsSvc
+  UsageAnalyticsUI --> Actor : show "Google Analytics\nunavailable" error
+  deactivate UsageAnalyticsUI
+end
+
+@enduml

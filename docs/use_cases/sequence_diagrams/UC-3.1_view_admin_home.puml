@@ -1,0 +1,54 @@
+@startuml UC-3.1_view_admin_home
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-3.1 — View Admin Home Dashboard
+
+actor "All Authenticated Users" as Actor
+participant "Admin Home Dashboard\n[presentation]" as HomeDashboard
+participant "Health Monitoring Service\n[application]" as HealthSvc
+participant "Analytics Service\n[application]" as AnalyticsSvc
+database "Google Analytics\n[external]" as GA
+database "ETL Metadata\n[data store]" as ETLMeta
+participant "Cloud Run Service\n[external]" as CloudRun
+
+Actor -> HomeDashboard : navigate to Admin System home page
+activate HomeDashboard
+
+HomeDashboard -> AnalyticsSvc : get visitor activity metrics
+activate AnalyticsSvc
+AnalyticsSvc -> GA : query aggregated usage data
+activate GA
+GA --> AnalyticsSvc : visitor metrics\n(sessions, unique users, etc.)
+deactivate GA
+AnalyticsSvc --> HomeDashboard : visitor metrics
+deactivate AnalyticsSvc
+
+HomeDashboard -> HealthSvc : get ETL operational status
+activate HealthSvc
+HealthSvc -> ETLMeta : query ETL execution status
+activate ETLMeta
+ETLMeta --> HealthSvc : last execution, data freshness,\nprocessing status, failures
+deactivate ETLMeta
+HealthSvc --> HomeDashboard : ETL status
+deactivate HealthSvc
+
+HomeDashboard -> HealthSvc : get dashboard availability
+activate HealthSvc
+HealthSvc -> CloudRun : check application health
+activate CloudRun
+CloudRun --> HealthSvc : availability, errors,\nlatency, failures
+deactivate CloudRun
+HealthSvc --> HomeDashboard : dashboard health
+deactivate HealthSvc
+
+HomeDashboard -> HomeDashboard : assemble Admin Home Dashboard\n(sections: Dashboard, ETL, System)
+
+alt All data sources available
+  HomeDashboard --> Actor : show complete dashboard overview
+else Some sources unavailable
+  HomeDashboard --> Actor : show available data\nwith status indicators\nfor unavailable sources
+end
+
+deactivate HomeDashboard
+
+@enduml

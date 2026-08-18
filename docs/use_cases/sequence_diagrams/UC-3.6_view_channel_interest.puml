@@ -1,0 +1,43 @@
+@startuml UC-3.6_view_channel_interest
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-3.6 — View Channel Interest Analytics
+
+actor "Owner / Super Admin /\nAnalyst" as Actor
+participant "Channel Interest\n[presentation]" as ChannelInterestUI
+participant "Analytics Service\n[application]" as AnalyticsSvc
+database "Google Analytics\n[external]" as GA
+
+Actor -> ChannelInterestUI : navigate to Usage Analytics;\nview Channel Interest section
+activate ChannelInterestUI
+
+ChannelInterestUI -> AnalyticsSvc : get channel interest analytics
+activate AnalyticsSvc
+
+AnalyticsSvc -> GA : query channel interest events\n(Channel ID, originating\ndashboard context)
+activate GA
+
+alt Channel interest data available
+  GA --> AnalyticsSvc : interest events
+  deactivate GA
+
+  AnalyticsSvc -> AnalyticsSvc : aggregate channel interest data
+
+  AnalyticsSvc --> ChannelInterestUI : aggregated interest data
+  deactivate AnalyticsSvc
+
+  ChannelInterestUI -> ChannelInterestUI : display aggregated\nchannel interest data\n(BR-018: privacy-preserving)
+
+  ChannelInterestUI --> Actor : show channel interest page
+  deactivate ChannelInterestUI
+
+else No channel interest data
+  GA --> AnalyticsSvc : empty result
+  deactivate GA
+  AnalyticsSvc --> ChannelInterestUI : empty
+  deactivate AnalyticsSvc
+  ChannelInterestUI --> Actor : show "no channel interest\ndata available" message
+  deactivate ChannelInterestUI
+end
+
+@enduml

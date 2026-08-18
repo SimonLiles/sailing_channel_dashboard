@@ -1,0 +1,131 @@
+@startuml UC-2.2_add_channel
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-2.2 — Add Channel
+
+actor "Owner / Super Admin /\nChannel Manager" as Actor
+participant "Add Channel\n[presentation]" as AddChannel
+participant "Channel Management Service\n[application]" as ChanMgmtSvc
+participant "YouTube Data API v3\n[external]" as YT
+database "BigQuery\nchannel_dimensions\n[data store]" as BQ
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> AddChannel : navigate to Add Channel page
+activate AddChannel
+
+AddChannel -> AddChannel : display Add Channel form
+
+Actor -> AddChannel : enter YouTube channel handle
+
+AddChannel -> ChanMgmtSvc : add channel(handle)
+activate ChanMgmtSvc
+
+ChanMgmtSvc -> ChanMgmtSvc : validate handle format
+
+alt Handle invalid
+  ChanMgmtSvc --> AddChannel : Failure(InvalidHandle)
+  deactivate ChanMgmtSvc
+  AddChannel --> Actor : show "invalid handle" error
+  deactivate AddChannel
+  stop
+
+else Valid handle
+end
+
+ChanMgmtSvc -> YT : resolve handle → channel_id
+activate YT
+
+alt API call failed
+  YT --> ChanMgmtSvc : error
+  deactivate YT
+
+  alt Quota exceeded
+    ChanMgmtSvc --> AddChannel : Failure(QuotaExceeded)
+    deactivate ChanMgmtSvc
+    AddChannel --> Actor : show quota-specific error
+  else Other API error
+    ChanMgmtSvc --> AddChannel : Failure(APIError)
+    deactivate ChanMgmtSvc
+    AddChannel --> Actor : show API error with details
+  end
+  deactivate AddChannel
+  stop
+
+else API success
+  YT --> ChanMgmtSvc : channel_id + metadata
+  deactivate YT
+end
+
+ChanMgmtSvc -> BQ : check for existing record\n(channel_id)
+activate BQ
+BQ --> ChanMgmtSvc : record status
+deactivate BQ
+
+alt Existing active record
+  ChanMgmtSvc --> AddChannel : Failure(AlreadyActive)
+  deactivate ChanMgmtSvc
+  AddChannel --> Actor : inform: channel already tracked\nand active (AF-1)
+  deactivate AddChannel
+  stop
+
+elseif Existing inactive record
+  ChanMgmtSvc --> AddChannel : Warning(InactiveChannel)\nchannel is inactive
+  deactivate ChanMgmtSvc
+  AddChannel --> Actor : inform: channel is inactive;\nrequest reactivation confirmation
+
+  alt Confirms reactivation
+    Actor -> AddChannel : confirm reactivation
+    AddChannel -> ChanMgmtSvc : reactivate channel(channelId)
+    activate ChanMgmtSvc
+    ChanMgmtSvc -> BQ : set is_active = TRUE
+    activate BQ
+    BQ --> ChanMgmtSvc : ok
+    deactivate BQ
+    ChanMgmtSvc --> AddChannel : Success(channel)\n(AF-2: resumes on next ETL)
+    deactivate ChanMgmtSvc
+  else Does not confirm
+    Actor -> AddChannel : decline
+    ChanMgmtSvc --> AddChannel : ok
+    deactivate ChanMgmtSvc
+    AddChannel --> Actor : take no action
+    deactivate AddChannel
+    stop
+  end
+
+else No existing record — new channel
+end
+
+ChanMgmtSvc -> ChanMgmtSvc : retrieve YouTube-derived\nmetadata (title, description,\njoin date, keywords, etc.)
+
+ChanMgmtSvc --> AddChannel : channel info for review
+deactivate ChanMgmtSvc
+
+AddChannel -> AddChannel : display channel info\nfor administrator review
+
+Actor -> AddChannel : confirm addition
+
+AddChannel -> ChanMgmtSvc : commit channel(channelInfo)
+activate ChanMgmtSvc
+
+ChanMgmtSvc -> BQ : insert into channel_dimensions\n(is_active = TRUE)
+activate BQ
+BQ --> ChanMgmtSvc : ok
+deactivate BQ
+
+ChanMgmtSvc -> AuditSvc : record: Channel added\n(actor, channel_id, handle, timestamp)
+activate AuditSvc
+AuditSvc -> BQ : append audit record
+note right of BQ
+  Audit records stored in
+  CloudSQL, not BigQuery.
+  Simplified here.
+end note
+AuditSvc --> ChanMgmtSvc : ok
+deactivate AuditSvc
+
+ChanMgmtSvc --> AddChannel : Success(channel)
+deactivate ChanMgmtSvc
+AddChannel --> Actor : show confirmation
+deactivate AddChannel
+
+@enduml

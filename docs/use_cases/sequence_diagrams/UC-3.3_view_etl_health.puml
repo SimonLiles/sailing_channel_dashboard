@@ -1,0 +1,41 @@
+@startuml UC-3.3_view_etl_health
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-3.3 — View ETL Health
+
+actor "Owner / Super Admin /\nChannel Manager / Analyst" as Actor
+participant "System Health\n[presentation]" as SystemHealthUI
+participant "Health Monitoring Service\n[application]" as HealthSvc
+database "ETL Metadata\n[data store]" as ETLMeta
+
+Actor -> SystemHealthUI : navigate to System Health page\nor Admin Home Dashboard
+activate SystemHealthUI
+
+SystemHealthUI -> HealthSvc : get ETL health data
+activate HealthSvc
+
+HealthSvc -> ETLMeta : query ETL operational health
+activate ETLMeta
+
+alt ETL metadata available
+  ETLMeta --> HealthSvc : ETL health data\n(last execution, last success,\nduration, freshness, channels\nprocessed/successful/failed, errors)
+  deactivate ETLMeta
+
+  HealthSvc --> SystemHealthUI : ETL health info
+  deactivate HealthSvc
+
+  SystemHealthUI -> SystemHealthUI : display ETL health\n(BR-019: observe only,\nno ETL controls)
+
+  SystemHealthUI --> Actor : show ETL health page
+  deactivate SystemHealthUI
+
+else ETL metadata unavailable
+  ETLMeta --> HealthSvc : error
+  deactivate ETLMeta
+  HealthSvc --> SystemHealthUI : Failure(MetadataUnavailable)
+  deactivate HealthSvc
+  SystemHealthUI --> Actor : show "ETL metadata\nunavailable" indicator
+  deactivate SystemHealthUI
+end
+
+@enduml

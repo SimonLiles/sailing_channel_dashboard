@@ -1,0 +1,60 @@
+@startuml UC-4.1_view_audit_log
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-4.1 — View Audit Log
+
+actor "Owner / Super Admin" as Actor
+participant "Audit Log\n[presentation]" as AuditLogUI
+participant "Audit Service\n[application]" as AuditSvc
+participant "Authorization / RBAC Engine\n[application]" as AuthzEngine
+database "CloudSQL\n[data store]" as CloudSQL
+
+Actor -> AuditLogUI : navigate to Audit Log page
+activate AuditLogUI
+
+AuditLogUI -> AuthzEngine : verify role\n(Owner or Super Admin only)
+activate AuthzEngine
+AuthzEngine --> AuditLogUI : authorized
+deactivate AuthzEngine
+
+AuditLogUI -> AuditSvc : get audit records
+activate AuditSvc
+
+AuditSvc -> CloudSQL : query audit records\n(append-only, immutable)
+activate CloudSQL
+
+alt Audit data available
+  CloudSQL --> AuditSvc : audit records
+  deactivate CloudSQL
+
+  AuditSvc --> AuditLogUI : audit entries\n(actor, role, timestamp, action,\ntarget, outcome, before/after state,\nerror info, operation ID)
+  deactivate AuditSvc
+
+  AuditLogUI -> AuditLogUI : display audit log\n(BR-016: immutable,\nBR-017: retained indefinitely)
+
+  AuditLogUI --> Actor : show audit log page
+  deactivate AuditLogUI
+
+  alt Filters applied
+    Actor -> AuditLogUI : specify filter criteria\n(actor, action, date range, target)
+    AuditLogUI -> AuditSvc : query with filters
+    activate AuditSvc
+    AuditSvc -> CloudSQL : query filtered audit records
+    activate CloudSQL
+    CloudSQL --> AuditSvc : filtered records
+    deactivate CloudSQL
+    AuditSvc --> AuditLogUI : filtered entries
+    deactivate AuditSvc
+    AuditLogUI --> Actor : refresh audit log
+  end
+
+else Audit data unavailable
+  CloudSQL --> AuditSvc : error
+  deactivate CloudSQL
+  AuditSvc --> AuditLogUI : Failure(DataUnavailable)
+  deactivate AuditSvc
+  AuditLogUI --> Actor : show "audit data\nunavailable" error
+  deactivate AuditLogUI
+end
+
+@enduml

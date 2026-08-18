@@ -1,0 +1,36 @@
+@startuml UC-3.5_view_dashboard_health
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-3.5 — View Dashboard Health
+
+actor "Owner / Super Admin /\nChannel Manager / Analyst" as Actor
+participant "System Health\n[presentation]" as SystemHealthUI
+participant "Health Monitoring Service\n[application]" as HealthSvc
+participant "Cloud Run Service\n[external]" as CloudRun
+participant "YouTube Data API v3\n[external]" as YT
+
+Actor -> SystemHealthUI : navigate to System Health page
+activate SystemHealthUI
+
+SystemHealthUI -> HealthSvc : get dashboard health
+activate HealthSvc
+
+HealthSvc -> CloudRun : retrieve availability,\nerrors, HTTP status,\nlatency, failures
+activate CloudRun
+CloudRun --> HealthSvc : application health indicators
+deactivate CloudRun
+
+HealthSvc -> YT : check YouTube Data API\nfailures affecting data product
+activate YT
+YT --> HealthSvc : API failure info\n(auth, quota, request,\nchannel lookup failures)
+deactivate YT
+
+HealthSvc --> SystemHealthUI : dashboard health data
+deactivate HealthSvc
+
+SystemHealthUI -> SystemHealthUI : display dashboard health\n(application health +\nYouTube API issues)
+
+SystemHealthUI --> Actor : show dashboard health page
+deactivate SystemHealthUI
+
+@enduml

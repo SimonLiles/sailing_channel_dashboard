@@ -1,0 +1,62 @@
+@startuml UC-2.3_deactivate_channel
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-2.3 — Deactivate Channel
+
+actor "Owner / Super Admin /\nChannel Manager" as Actor
+participant "Channel Inventory\n[presentation]" as ChanInventory
+participant "Channel Management Service\n[application]" as ChanMgmtSvc
+database "BigQuery\nchannel_dimensions\n[data store]" as BQ
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> ChanInventory : navigate to Channel Inventory;\nselect active channel; select "Deactivate"
+activate ChanInventory
+
+ChanInventory -> ChanMgmtSvc : look up channel(channelId)
+activate ChanMgmtSvc
+ChanMgmtSvc -> BQ : query channel record
+activate BQ
+BQ --> ChanMgmtSvc : channel record
+deactivate BQ
+ChanMgmtSvc --> ChanInventory : channel details
+deactivate ChanMgmtSvc
+
+alt Channel not found
+  ChanInventory --> Actor : show "channel not found" error
+  deactivate ChanInventory
+  stop
+
+elseif Channel already inactive
+  ChanInventory --> Actor : inform: channel is\nalready inactive
+  deactivate ChanInventory
+  stop
+
+else Channel exists and is active
+end
+
+ChanInventory -> ChanInventory : display details and\ndeactivation warning\n(excluded from dashboard,\nETL ceases, data preserved)
+
+Actor -> ChanInventory : confirm deactivation
+
+ChanInventory -> ChanMgmtSvc : deactivate channel(channelId)
+activate ChanMgmtSvc
+
+ChanMgmtSvc -> BQ : set is_active = FALSE
+activate BQ
+BQ --> ChanMgmtSvc : ok
+deactivate BQ
+
+ChanMgmtSvc -> ChanMgmtSvc : exclude from active dashboard;\nprevent future ETL collection
+
+ChanMgmtSvc -> AuditSvc : record: Channel deactivated\n(actor, channel_id, timestamp)
+activate AuditSvc
+AuditSvc -> AuditSvc : append audit record
+AuditSvc --> ChanMgmtSvc : ok
+deactivate AuditSvc
+
+ChanMgmtSvc --> ChanInventory : Success(channel)
+deactivate ChanMgmtSvc
+ChanInventory --> Actor : show confirmation
+deactivate ChanInventory
+
+@enduml

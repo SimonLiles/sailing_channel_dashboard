@@ -1,0 +1,67 @@
+@startuml UC-2.1_view_channel_inventory
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-2.1 — View Channel Inventory
+
+actor "Owner / Super Admin /\nChannel Manager" as Actor
+participant "Channel Inventory\n[presentation]" as ChanInventory
+participant "Channel Management Service\n[application]" as ChanMgmtSvc
+database "BigQuery\nchannel_dimensions\n[data store]" as BQ
+
+Actor -> ChanInventory : navigate to Channel Inventory page
+activate ChanInventory
+
+ChanInventory -> ChanMgmtSvc : get all channels
+activate ChanMgmtSvc
+
+ChanMgmtSvc -> BQ : query channel_dimensions\nfor all tracked channels
+activate BQ
+
+alt BigQuery available
+  BQ --> ChanMgmtSvc : channel records
+  deactivate BQ
+
+  ChanMgmtSvc --> ChanInventory : channels list
+  deactivate ChanMgmtSvc
+
+  ChanInventory -> ChanInventory : display inventory\n(title, handle, channel_id,\nstatus, date_added, added_by,\nlast_updated, ETL status)
+
+  ChanInventory --> Actor : show Channel Inventory page
+  deactivate ChanInventory
+
+  alt Filters applied
+    Actor -> ChanInventory : specify filter criteria\n(status, date range)
+    ChanInventory -> ChanMgmtSvc : apply filters
+    activate ChanMgmtSvc
+    ChanMgmtSvc -> BQ : query with filters
+    activate BQ
+    BQ --> ChanMgmtSvc : filtered results
+    deactivate BQ
+    ChanMgmtSvc --> ChanInventory : filtered channels
+    deactivate ChanMgmtSvc
+    ChanInventory --> Actor : refresh display
+  end
+
+  alt Search performed
+    Actor -> ChanInventory : enter search term\n(title, handle, or ID)
+    ChanInventory -> ChanMgmtSvc : search channels
+    activate ChanMgmtSvc
+    ChanMgmtSvc -> BQ : query with search
+    activate BQ
+    BQ --> ChanMgmtSvc : matching results
+    deactivate BQ
+    ChanMgmtSvc --> ChanInventory : matching channels
+    deactivate ChanMgmtSvc
+    ChanInventory --> Actor : refresh display
+  end
+
+else BigQuery unavailable
+  BQ --> ChanMgmtSvc : error
+  deactivate BQ
+  ChanMgmtSvc --> ChanInventory : Failure(DataSourceUnavailable)
+  deactivate ChanMgmtSvc
+  ChanInventory --> Actor : show "data source unavailable" error
+  deactivate ChanInventory
+end
+
+@enduml
