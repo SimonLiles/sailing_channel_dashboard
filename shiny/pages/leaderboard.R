@@ -246,6 +246,14 @@ leaderboard_server <- function(input, output, session) {
       cv  <- cohort_value()
       wv  <- window_days()
       sm  <- selected_metrics()
+      # Always fetch subscriber_count alongside subscriber deltas so the
+      # "< resolution" display can look up the channel's size even when the
+      # Subscribers column itself is not displayed.
+      fetch_metrics <- sm
+      if (any(c("total_subs_window", "daily_new_subs") %in% sm) &&
+          !("subscriber_count" %in% fetch_metrics)) {
+        fetch_metrics <- c(fetch_metrics, "subscriber_count")
+      }
       psz <- as.integer(input$leaderboard_page_size %||% 25L)
 
       # Determine cursor and direction from pagination state
@@ -270,7 +278,7 @@ leaderboard_server <- function(input, output, session) {
         rank_by_metric    = input$leaderboard_rank_by,
         window_days       = wv,
         page_size         = psz,
-        selected_metrics  = sm,
+        selected_metrics  = fetch_metrics,
         cursor_ranking    = cursor_rank,
         cursor_channel_id = cursor_cid,
         direction         = dir,
@@ -383,6 +391,40 @@ leaderboard_server <- function(input, output, session) {
             paste0("~", format_youtube_style(value))
           }
         }
+      )
+    }
+
+    # Override subscriber deltas: a 0 on a rounded channel means growth
+    # below the YouTube API resolution, not necessarily true zero.
+    # Looks up the row's subscriber_count from the full page data (which
+    # always includes it when a delta column is displayed, even if the
+    # Subscribers column itself is hidden).
+    subs_delta_cell <- function(value, index) {
+      sub_count <- NULL
+      if ("subscriber_count_metric_value" %in% names(data)) {
+        sub_count <- data[["subscriber_count_metric_value"]][index]
+      } else if ("subscriber_count" %in% names(data)) {
+        sub_count <- data[["subscriber_count"]][index]
+      }
+      if (length(sub_count) == 0 || is.na(sub_count)) {
+        sub_count <- NA_real_
+      }
+      format_subs_change(value, sub_count)
+    }
+    if ("total_subs_window_metric_value" %in% names(data)) {
+      display_name <- metric_meta$display_label[metric_meta$metric_name == "total_subs_window"]
+      if (length(display_name) == 0) display_name <- "New Subscribers"
+      metric_defs[["total_subs_window_metric_value"]] <- colDef(
+        name = display_name, align = "right",
+        cell = subs_delta_cell
+      )
+    }
+    if ("daily_new_subs_metric_value" %in% names(data)) {
+      display_name <- metric_meta$display_label[metric_meta$metric_name == "daily_new_subs"]
+      if (length(display_name) == 0) display_name <- "Daily New Subs"
+      metric_defs[["daily_new_subs_metric_value"]] <- colDef(
+        name = display_name, align = "right",
+        cell = subs_delta_cell
       )
     }
 
