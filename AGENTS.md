@@ -126,13 +126,13 @@ no generators. Nothing to rerun.
 
 ## Current Iteration
 
-**Iteration 1**: Admin System build
+**Iteration 1**: Platform & CI/CD modernization
 
-Build the secure admin control plane per
-`docs/Sailing Channel Dashboard — Administration System.md` as a new Python
-service on Cloud Run (OQ-1): Google-OAuth auth with no auto-provisioning,
-channel management, monitoring, and audit — without altering the existing
-pipeline's data flow.
+Terraform full-adopt of live GCP infra (data layer first), Liquibase OSS for
+BigQuery versioning, lintr + ruff gates, SQL test strategy, required PR
+checks with Trivy in advisory mode — no pipeline behavior change. Sets the
+foundation for I2 Auth/Users, I3 Channels, I4 Instrumentation + Monitoring
++ Audit, I5 Trivy cleanup (enforcing).
 
 Full plan: `agents/plans/iteration_1_plan.md`
 

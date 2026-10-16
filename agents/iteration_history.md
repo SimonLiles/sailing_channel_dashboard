@@ -16,7 +16,11 @@
 
 | It | Goal | Key Deliverables | Status |
 |---|---|---|---|
-| 1 | Admin System build (auth, channels, monitoring, audit) | U1 auth/authz + user mgmt (UC-1.x), U2 channel mgmt (UC-2.x), U3 monitoring (UC-3.x), U4 audit log (UC-4.1) | Not started |
+| 1 | Platform & CI/CD modernization | Lint gates (lintr+ruff), Terraform full-adopt, Liquibase + SQL tests, required PR checks + Trivy advisory | Not started |
+| 2 | Auth & user management (UC-1.x) | Python service: Google-OAuth sign-in, RBAC engine, provision/suspend/deprovision, roles, ownership transfer | Not started |
+| 3 | Channel management (UC-2.x) | Inventory, add (handle→`channel_id`), deactivate/reactivate, bulk import | Not started |
+| 4 | Instrumentation, monitoring & audit (UC-3.x + UC-4.1) | Event taxonomy + Shiny logging, health-signal APIs, admin monitoring views, audit log | Not started |
+| 5 | Trivy cleanup (enforcing) | Baseline triaged, image findings remediated, Trivy gates flipped to blocking | Not started |
 
 ---
 
@@ -48,24 +52,61 @@
 <!-- Detailed scope for upcoming iterations goes here, newest first. Keep each
      planned iteration independently shippable (methodology.md, Phase 5). -->
 
-### Iteration 1 — Admin System build
+### Iteration 5 — Trivy cleanup (enforcing)
 
-New Python service on Cloud Run (OQ-1 resolved 2026-10-14); four-layer clean
-arch for app code, Medallion for the data layer (OQ-3).
+- Triage the advisory-mode baseline accumulated since I1 (image + fs/IaC
+  findings for ETL/Shiny images and Terraform).
+- Remediate or formally accept each finding; upgrade/rebuild base images as
+  needed.
+- Flip Trivy gates from advisory to enforcing (build fails on policy;
+  policy: HIGH+ or CRITICAL per baseline review).
+- Exit criteria: `deploy.yml` green with enforcing gates; no open
+  unaccepted findings.
 
-- U0 — CI/CD setup: lintr (R) + ruff (Python) configs, lint jobs in
-  `deploy.yml`, AGENTS.md Commands updated. No pipeline behavior change.
+### Iteration 4 — Instrumentation, monitoring & audit
 
-- U1 — Authentication & user management (UC-1.1–UC-1.8): Google-OAuth
-  sign-in, RBAC authorization, provision/suspend/deprovision, role
-  assign/change, ownership transfer. Python service.
-- U2 — Channel management (UC-2.1–UC-2.7): inventory, add (handle →
-  `channel_id` resolution), deactivate/reactivate, bulk CSV/XLSX import with
-  row-independent commit.
-- U3 — Monitoring (UC-3.1–UC-3.6): admin home, usage analytics, ETL health,
-  data freshness, dashboard health, channel interest (observe-only, BR-019).
-- U4 — Audit log (UC-4.1): append-only immutable view, filterable by
-  actor/action (BR-016, NFR-002).
+- Event taxonomy doc + Shiny instrumentation (JS collector: visitor cookie,
+  referrer/UTMs, screen; server enrichment: UA parse, MaxMind geo with raw
+  IP dropped; bot + internal-traffic filtering).
+- Query logging at the `run_*_query.R` choke point (query text, params,
+  `channel_id`, latency).
+- Health-signal APIs: ETL job status, data freshness, dashboard availability
+  (observe-only, BR-019).
+- Admin views UC-3.1–UC-3.6 + audit log UC-4.1 (BR-016, NFR-002).
+- May split into I4a (instrumentation) / I4b (views + audit) once taxonomy
+  design lands (OQ-6).
+
+### Iteration 3 — Channel management
+
+- UC-2.1–UC-2.7 on the Python service: inventory, add with handle→
+  `channel_id` preview, deactivate/reactivate, bulk CSV/XLSX import with
+  review and row-independent commit (BR-015).
+- Every mutation appends an audit record (NFR-002); `channel_id` truth
+  enforced (BR-006).
+
+### Iteration 2 — Auth & user management
+
+- UC-1.1–UC-1.8 on the Python service: Google-OAuth sign-in with no
+  auto-provisioning (BR-005), RBAC engine + capability matrix (NFR-001),
+  provision/suspend/deprovision, role assign/change, ownership transfer
+  (BR-001/BR-003).
+
+### Iteration 1 — Platform & CI/CD modernization
+
+New Python service on Cloud Run (OQ-1); four-layer clean arch for app code,
+Medallion for the data layer (OQ-3).
+
+- U1 — Lint gates: lintr (R) + ruff (Python) configs, CI wiring, AGENTS.md
+  Commands updated.
+- U2 — Terraform full-adopt (data layer first): GCS-backed state,
+  resource-by-resource import with `plan` showing no diff; `fmt`/`validate`
+  on PRs, `plan`+`apply` on main.
+- U3 — Liquibase OSS + SQL tests: baseline changelog of current schema,
+  `migrate` in CI (dev), sandbox-backed SQL tests, `sql/05_tests/`
+  populated. R runner keeps idempotent mart rebuilds.
+- U4 — PR checks + Trivy advisory: `pull_request` trigger with required
+  secret-free gates; Trivy fs + IaC-misconfig scans required, image scans
+  advisory (SARIF, non-blocking) until I5.
 
 Full unit plan: `agents/plans/iteration_1_plan.md`. Spec:
 `docs/use_cases/use_case_spec_admin.md`. Component diagram:
