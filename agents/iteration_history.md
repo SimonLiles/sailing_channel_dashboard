@@ -22,6 +22,21 @@
 
 ## What Has Been Built Per Iteration
 
+### OOB — Creator Explorer cold-start fix (2026-10-16)
+
+- Crash on newly added channels (`if (NA)` in the negative-average
+  footnote) fixed via NA-safe helpers + graceful-partial UI.
+- New: `shiny/utils/coldstart_helpers.R` (`safe_tail1`,
+  `show_negative_note`, `coalesce_profile_field`, `format_count_safe`,
+  `has_series`, `flows_pending`); 1-line `source()` in `shiny/global.R`.
+- Modified: `shiny/pages/creator_explorer.R` only (empty-history branch,
+  pending-notice banner, placeholder sparklines, `N/A` value boxes).
+- Tests: `tests/testthat/test_coldstart_helpers.R` (48 tests green;
+  full gate has one pre-existing unrelated failure:
+  `test_config.R` prod-dataset expectation vs dev working config).
+- Plan: `agents/plans/iteration_oob_creator_explorer_coldstart_plan.md`.
+  Prod verification left to the user (no prod access granted).
+
 ### Iteration 1
 
 <!-- Append at iteration end. -->

@@ -30,6 +30,8 @@ source(paste("utils", "read_rds_from_gcs.R", sep = "/"))
 source(paste("utils", "gcs_cache_last_modified.R", sep = "/"))
 source(paste("utils", "run_channel_query.R", sep = "/"))
 source(paste("utils", "run_leaderboard_query.R", sep = "/"))
+# Load cold-start helpers (presentation layer, sourced after core utils)
+source(here("shiny", "utils", "coldstart_helpers.R"))
 
 # BigQuery connection constants
 project <- bq_project()
