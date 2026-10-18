@@ -11,7 +11,7 @@ library(here)
 # fail() guards keep the red baseline crisp: one hard failure per missing
 # deliverable, no cascading errors, no skips.
 
-TF_BIN <- "/Users/simon/.local/bin/terraform"
+tf_binary <- Sys.which("terraform")
 
 test_that("terraform/ scaffold files exist (versions/backend/variables/main)", {
   tf_files <- c("versions.tf", "backend.tf", "variables.tf", "main.tf")
@@ -45,7 +45,7 @@ test_that("backend.tf declares GCS backend with exact bucket and prefix", {
   } else {
     cfg <- paste(readLines(backend_path, warn = FALSE), collapse = "\n")
     expect_match(cfg, 'backend\\s+"gcs"', info = "RED U2: backend.tf must declare backend \"gcs\".")
-    expect_match(cfg, "yt-sailing-dashboard-cache", fixed = TRUE, info = "RED U2: backend.tf must use bucket yt-sailing-dashboard-cache.")
+    expect_match(cfg, "yt-sailing-dashboard-tf-state", fixed = TRUE, info = "RED U2: backend.tf must use bucket yt-sailing-dashboard-tf-state.")
     expect_match(cfg, "terraform/state", fixed = TRUE, info = "RED U2: backend.tf must use prefix terraform/state.")
   }
 })
@@ -100,12 +100,12 @@ test_that("main.tf uses import blocks data-layer-first (BQ/IAM first, Cloud Run 
 })
 
 test_that("terraform fmt -check exits 0 (no creds, local only)", {
-  if (!file.exists(TF_BIN)) {
-    fail("RED U2: terraform binary missing at /Users/simon/.local/bin/terraform (expected v1.16.6).")
+  if (!nzchar(tf_binary)) {
+    skip("terraform binary not on PATH")
   } else if (!dir.exists(here("terraform"))) {
     fail("RED U2: terraform/ missing, nothing for `fmt -check`.")
   } else {
-    out <- system2(TF_BIN, c("fmt", "-check", "-recursive", shQuote(here("terraform"))), stdout = TRUE, stderr = TRUE)
+    out <- system2(tf_binary, c("fmt", "-check", "-recursive", shQuote(here("terraform"))), stdout = TRUE, stderr = TRUE)
     out_status <- attr(out, "status", exact = TRUE)
     if (is.null(out_status)) out_status <- 0L
     expect_equal(
@@ -116,13 +116,13 @@ test_that("terraform fmt -check exits 0 (no creds, local only)", {
 })
 
 test_that("terraform init -backend=false + validate exit 0 (no auth)", {
-  if (!file.exists(TF_BIN)) {
-    fail("RED U2: terraform binary missing at /Users/simon/.local/bin/terraform, cannot init/validate.")
+  if (!nzchar(tf_binary)) {
+    skip("terraform binary not on PATH")
   } else if (!dir.exists(here("terraform"))) {
     fail("RED U2: terraform/ missing, nothing to init/validate.")
   } else {
     init_out <- system2(
-      TF_BIN,
+      tf_binary,
       c(paste0("-chdir=", shQuote(here("terraform"))), "init", "-backend=false", "-input=false"),
       stdout = TRUE, stderr = TRUE
     )
@@ -133,7 +133,7 @@ test_that("terraform init -backend=false + validate exit 0 (no auth)", {
       info = paste(c("RED U2: `terraform init -backend=false` failed (must run with no auth).", init_out), collapse = "\n")
     )
     val_out <- system2(
-      TF_BIN,
+      tf_binary,
       c(paste0("-chdir=", shQuote(here("terraform"))), "validate", "-no-color"),
       stdout = TRUE, stderr = TRUE
     )

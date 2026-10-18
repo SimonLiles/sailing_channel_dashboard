@@ -41,3 +41,7 @@ sql/.DS_Store
 # Ignore local provider cache; keep .terraform.lock.hcl TRACKED.
 terraform/.terraform/
 
+# --- Python ---
+.venv/
+.ruff_cache/
+

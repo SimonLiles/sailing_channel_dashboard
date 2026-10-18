@@ -3,8 +3,8 @@
 # All resources match live GCP infrastructure discovered 2026-10-18.
 
 resource "google_bigquery_dataset" "dev_dataset" {
-  dataset_id              = "yt_sailing_data_dev"
-  location                = "US"
+  dataset_id                 = "yt_sailing_data_dev"
+  location                   = "US"
   delete_contents_on_destroy = false
 
   lifecycle {
@@ -12,14 +12,15 @@ resource "google_bigquery_dataset" "dev_dataset" {
   }
 }
 
+# Batch 1 — BigQuery dev dataset (data layer FIRST).
 import {
   to = google_bigquery_dataset.dev_dataset
   id = "projects/yt-sailing-dashboard/datasets/yt_sailing_data_dev"
 }
 
 resource "google_bigquery_dataset" "prod_dataset" {
-  dataset_id              = "yt_sailing_data"
-  location                = "US"
+  dataset_id                 = "yt_sailing_data"
+  location                   = "US"
   delete_contents_on_destroy = false
 
   lifecycle {
@@ -27,14 +28,15 @@ resource "google_bigquery_dataset" "prod_dataset" {
   }
 }
 
+# Batch 1 — BigQuery prod dataset (data layer FIRST).
 import {
   to = google_bigquery_dataset.prod_dataset
   id = "projects/yt-sailing-dashboard/datasets/yt_sailing_data"
 }
 
 resource "google_bigquery_dataset" "pre_migration_dataset" {
-  dataset_id              = "yt_sailing_data_pre_migration"
-  location                = "US"
+  dataset_id                 = "yt_sailing_data_pre_migration"
+  location                   = "US"
   delete_contents_on_destroy = false
 
   lifecycle {
@@ -42,6 +44,7 @@ resource "google_bigquery_dataset" "pre_migration_dataset" {
   }
 }
 
+# Batch 1 — BigQuery pre-migration dataset (data layer FIRST).
 import {
   to = google_bigquery_dataset.pre_migration_dataset
   id = "projects/yt-sailing-dashboard/datasets/yt_sailing_data_pre_migration"
@@ -56,12 +59,13 @@ resource "google_storage_bucket" "cache" {
       type = "Delete"
     }
     condition {
-      age          = 60
+      age            = 60
       matches_prefix = ["backups/"]
     }
   }
 }
 
+# Batch 2 — GCS cache bucket (storage, after datasets).
 import {
   to = google_storage_bucket.cache
   id = "yt-sailing-dashboard-cache"
@@ -72,6 +76,7 @@ resource "google_storage_bucket" "tf_state" {
   location = "US-CENTRAL1"
 }
 
+# Batch 2 — GCS Terraform state bucket (storage).
 import {
   to = google_storage_bucket.tf_state
   id = "yt-sailing-dashboard-tf-state"
@@ -81,7 +86,7 @@ resource "google_artifact_registry_repository" "containers" {
   repository_id = "yt-sailing-dashboard-containers"
   location      = "us-central1"
   format        = "Docker"
-  description = "Repository for the Docker containers containing the different services for the YT Sailing Channel Dashboard"
+  description   = "Repository for the Docker containers containing the different services for the YT Sailing Channel Dashboard"
   lifecycle {
     ignore_changes = [
       cleanup_policy_dry_run,
@@ -90,17 +95,18 @@ resource "google_artifact_registry_repository" "containers" {
   }
 }
 
+# Batch 2 — Artifact Registry repository (registry, with storage).
 import {
   to = google_artifact_registry_repository.containers
   id = "projects/yt-sailing-dashboard/locations/us-central1/repositories/yt-sailing-dashboard-containers"
 }
 
 resource "google_cloud_scheduler_job" "etl_daily" {
-  name        = "yt-sailing-channel-etl-job-scheduler-trigger"
-  region      = "us-central1"
-  project     = "yt-sailing-dashboard"
-  schedule    = "0 0 */1 * *"
-  time_zone   = "Etc/UTC"
+  name             = "yt-sailing-channel-etl-job-scheduler-trigger"
+  region           = "us-central1"
+  project          = "yt-sailing-dashboard"
+  schedule         = "0 0 */1 * *"
+  time_zone        = "Etc/UTC"
   attempt_deadline = "180s"
   paused           = false
   description      = null
@@ -126,6 +132,7 @@ resource "google_cloud_scheduler_job" "etl_daily" {
   }
 }
 
+# Batch 3 — Cloud Scheduler ETL trigger (scheduling).
 import {
   to = google_cloud_scheduler_job.etl_daily
   id = "projects/yt-sailing-dashboard/locations/us-central1/jobs/yt-sailing-channel-etl-job-scheduler-trigger"
@@ -136,11 +143,11 @@ resource "google_cloud_run_v2_service" "shiny" {
   location = "us-central1"
   project  = "yt-sailing-dashboard"
 
-  deletion_protection = true
-  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection  = true
+  ingress              = "INGRESS_TRAFFIC_ALL"
   invoker_iam_disabled = true
-  labels              = {}
-  annotations         = {}
+  labels               = {}
+  annotations          = {}
 
   scaling {
     manual_instance_count = 0
@@ -178,8 +185,8 @@ resource "google_cloud_run_v2_service" "shiny" {
       }
 
       resources {
-        cpu_idle          = true
-        limits            = {
+        cpu_idle = true
+        limits = {
           "cpu"    = "1000m"
           "memory" = "1Gi"
         }
@@ -219,6 +226,7 @@ resource "google_cloud_run_v2_service" "shiny" {
   }
 }
 
+# Batch 4 — Cloud Run Shiny service (serving).
 import {
   to = google_cloud_run_v2_service.shiny
   id = "projects/yt-sailing-dashboard/locations/us-central1/services/yt-sailing-shiny"
@@ -290,6 +298,7 @@ resource "google_cloud_run_v2_job" "etl_job" {
   }
 }
 
+# Batch 4 — Cloud Run ETL job (serving LAST).
 import {
   to = google_cloud_run_v2_job.etl_job
   id = "projects/yt-sailing-dashboard/locations/us-central1/jobs/yt-sailing-channel-etl-job"

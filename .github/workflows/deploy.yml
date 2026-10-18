@@ -16,6 +16,7 @@ jobs:
   # Job 0: Lint gates (U1) — lintr for R, ruff for Python admin/
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -31,16 +32,16 @@ jobs:
       - name: Lint R sources
         run: Rscript -e "lintr::lint_dir('.')"
 
-      - name: Setup ruff
-        uses: astral-sh/setup-ruff@v4
-
       - name: Lint Python sources
-        run: ruff check --config pyproject.toml .
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          args: "check --config pyproject.toml ."
 
   # Job 0b: Terraform scaffold checks (U2) — fmt/validate only, no creds.
   # No GCP auth, no secrets, no needs on GCP-auth jobs; trigger unchanged.
   terraform:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -62,6 +63,7 @@ jobs:
   # Job 1: Run R tests before touching any infrastructure
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -75,11 +77,21 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-${{ hashFiles('**/DESCRIPTION', '**/renv.lock') }}
+          key: r-${{ hashFiles('pyproject.toml') }}
           restore-keys: r-
 
       - name: Install R Dependencies
         run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue', 'yaml', 'lintr'))"
+
+      - name: Setup Terraform (for terraform gate tests)
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+
+      - name: Install ruff (for lint gate tests)
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          args: "--version"
 
       - name: Run Unit Tests
         # PR runs are secret-free: no key is passed here on purpose.
@@ -96,6 +108,7 @@ jobs:
   # Filesystem + IaC misconfig findings upload as SARIF; Advisory until I5.
   trivy-fs-config:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       security-events: write
@@ -104,7 +117,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Trivy filesystem scan (advisory, SARIF)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -113,7 +126,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Trivy config scan (advisory, SARIF)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
           scan-ref: .
@@ -139,6 +152,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: [build-etl, build-shiny]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -157,7 +171,7 @@ jobs:
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
       - name: Trivy ETL image scan (advisory, SARIF)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }}
@@ -166,7 +180,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Trivy Shiny image scan (advisory, SARIF)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ${{ env.SHINY_IMAGE_BASE }}:${{ github.sha }}
@@ -191,6 +205,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -220,6 +235,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -252,6 +268,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: build-etl
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -345,6 +362,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -389,6 +407,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: [migrate, build-shiny]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
