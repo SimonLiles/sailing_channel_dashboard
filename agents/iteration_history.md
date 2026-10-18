@@ -126,6 +126,17 @@ backup failure never fails ETL (~$0.02/mo steady state).
 - Exit criteria: `deploy.yml` green with enforcing gates; no open
   unaccepted findings.
 
+Security backlog triaged 2026-10-18 (from Trivy IaC scan of PR #22,
+`terraform/main.tf`, 8 findings → 4 issues, grouped by rule):
+- #23 GCP-0002 MED — uniform bucket-level access on both GCS buckets
+  (cache bucket already UBA-enabled live = config drift; tf_state genuine).
+- #24 GCP-0077 MED — bucket logging not configured (both buckets).
+- #25 GCP-0078 MED — bucket versioning disabled (both buckets).
+- #26 GCP-0066 LOW — no customer-managed encryption key (both buckets;
+  needs Cloud KMS key + GCS SA grant).
+Labels `security`, `iteration-5`, `severity:medium`, `severity:low`
+created and applied.
+
 ### Iteration 4 — Instrumentation, monitoring & audit
 
 - Event taxonomy doc + Shiny instrumentation (JS collector: visitor cookie,
