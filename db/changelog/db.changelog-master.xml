@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sailing Channel Dashboard: Liquibase baseline changelog (Iteration 1, U3).
+  Baselines current BigQuery DDL from sql/01_raw/ddl and sql/03_marts/ddl so
+  schema is versioned, reviewable, and tested pre-merge. Mart rebuild
+  semantics are UNCHANGED: idempotent full-refresh CREATE OR REPLACE /
+  CREATE TABLE IF NOT EXISTS / MERGE loads stay owned by the R runner
+  (scripts/migrate_schema.R + scripts/backfill_marts.R), which this changelog
+  never modifies. `liquibase update` runs in CI against the DEV dataset only
+  (see deploy.yml liquibase-dev job), never from a workstation, never prod.
+
+  DATABASECHANGELOG tracking: on every `liquibase update`, Liquibase records
+  each applied changeSet in the DATABASECHANGELOG table (guarded by
+  DATABASECHANGELOGLOCK), so every schema mutation is traceable. Defaults
+  below pin the non-prod dataset; CI overrides project/dataset via -D flags
+  scoped to yt_sailing_data_dev.
+-->
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <property name="project" value="yt-sailing-dashboard"/>
+  <property name="dataset" value="yt_sailing_data_dev"/>
+
+  <changeSet id="01-raw-baseline" author="iteration1-u3">
+    <comment>Baseline sql/01_raw/ddl/create_raw_tables.sql: transient ingest
+    landing zone plus channel_dimensions dimension and daily_metrics_history
+    fact history. channel_id remains the canonical channel identity.</comment>
+    <sql>CREATE OR REPLACE TABLE `${project}.${dataset}.raw_daily_ingest` (
+    channel_id STRING,
+    channel_handle STRING,
+    title STRING,
+    description STRING,
+    join_date STRING,
+    view_count STRING,
+    subscriber_count STRING,
+    video_count STRING,
+    is_sub_count_hidden STRING,
+    channel_keywords STRING,
+    profile_pic STRING
+)</sql>
+    <sql>CREATE TABLE IF NOT EXISTS `${project}.${dataset}.channel_dimensions` (
+    channel_id STRING NOT NULL,
+    channel_handle STRING NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    channel_title STRING,
+    channel_description STRING,
+    join_date DATE,
+    is_sub_count_hidden BOOLEAN,
+    channel_keywords STRING,
+    profile_pic STRING,
+    status STRING,
+    type STRING,
+    added_by STRING,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+)</sql>
+    <sql>CREATE TABLE IF NOT EXISTS `${project}.${dataset}.daily_metrics_history` (
+    channel_id STRING NOT NULL,
+    date DATE NOT NULL,
+    view_count INT64,
+    subscriber_count INT64,
+    video_count INT64,
+    created_at TIMESTAMP
+)
+PARTITION BY date</sql>
+    <rollback>
+      <sql>DROP TABLE IF EXISTS `${project}.${dataset}.daily_metrics_history`</sql>
+      <sql>DROP TABLE IF EXISTS `${project}.${dataset}.channel_dimensions`</sql>
+      <sql>DROP TABLE IF EXISTS `${project}.${dataset}.raw_daily_ingest`</sql>
+    </rollback>
+  </changeSet>
+
+  <changeSet id="03-marts-metrics-baseline" author="iteration1-u3">
+    <comment>Baseline sql/03_marts/ddl/create_mart_tables.sql (part 1):
+    mart_channel_metrics rolling-window snapshots plus the long-format
+    mart_channel_metrics_values companion. Populated incrementally via MERGE
+    in mart_channel_metrics.sql; full-refresh rebuilds stay idempotent.</comment>
+    <sql>CREATE TABLE IF NOT EXISTS `${project}.${dataset}.mart_channel_metrics` (
+    channel_id STRING NOT NULL,
+    snapshot_date DATE NOT NULL,
+    window_days INT64 NOT NULL,
+    subscriber_count INT64,
+    view_count INT64,
+    video_count INT64,
+    total_views_window INT64,
+    total_subs_window INT64,
+    new_videos_window INT64,
+    views_moving_avg_7d FLOAT64,
+    sub_conversion_rate FLOAT64,
+    daily_new_subs INT64,
+    subs_pct_growth FLOAT64,
+    lifetime_views_per_vid FLOAT64,
+    views_per_vid_window FLOAT64,
+    views_per_sub_window FLOAT64,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+)
+PARTITION BY snapshot_date</sql>
+    <sql>CREATE TABLE IF NOT EXISTS `${project}.${dataset}.mart_channel_metrics_values` (
+    snapshot_date DATE NOT NULL,
+    channel_id STRING NOT NULL,
+    window_days INT64,
+    metric_name STRING NOT NULL,
+    metric_value FLOAT64,
+    updated_at TIMESTAMP
+)
+PARTITION BY snapshot_date</sql>
+    <rollback>
+      <sql>DROP TABLE IF EXISTS `${project}.${dataset}.mart_channel_metrics_values`</sql>
+      <sql>DROP TABLE IF EXISTS `${project}.${dataset}.mart_channel_metrics`</sql>
+    </rollback>
+  </changeSet>
+
+  <changeSet id="03-marts-cohorts-rankings-baseline" author="iteration1-u3">
+    <comment>Baseline sql/03_marts/ddl/create_mart_tables.sql (part 2):
+    mart_channel_cohorts assignments and mart_channel_rankings scores, both
+    maintained with idempotent MERGE upserts keyed on the snapshot grain.
+    Rollback drops both tables; data is restored by the R full-refresh.</comment>
+    <sql>CREATE TABLE IF NOT EXISTS `${project}.${dataset}.mart_channel_cohorts` (
+    snapshot_date DATE NOT NULL,
+    channel_id STRING NOT NULL,
+    cohort_type STRING NOT NULL,
+    cohort_value STRING,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+)
+PARTITION BY snapshot_date</sql>
+    <sql>CREATE TABLE IF NOT EXISTS `${project}.${dataset}.mart_channel_rankings` (
+    snapshot_date DATE NOT NULL,
+    channel_id STRING NOT NULL,
+    metric_name STRING NOT NULL,
+    window_days INT64,
+    cohort_type STRING NOT NULL,
+    cohort_value STRING,
+    ranking INT64,
+    percentile INT64,
+    prev_ranking INT64,
+    rank_change INT64,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+)
+PARTITION BY snapshot_date</sql>
+    <rollback>
+      <sql>DROP TABLE IF EXISTS `${project}.${dataset}.mart_channel_rankings`</sql>
+      <sql>DROP TABLE IF EXISTS `${project}.${dataset}.mart_channel_cohorts`</sql>
+    </rollback>
+  </changeSet>
+
+  <changeSet id="03-marts-load-contract-note" author="iteration1-u3">
+    <comment>Load contract note (no schema change): the incremental MERGE
+    loads in sql/03_marts (mart_channel_cohorts, mart_channel_rankings,
+    mart_channel_metrics) and the CREATE OR REPLACE full-refresh of
+    fct_daily_performance in sql/03_marts/fct_daily_performance.sql remain
+    executed by the R mart-rebuild runner only. This marker changeSet keeps
+    the changelog as the single versioned record of that contract without
+    duplicating runnable load SQL. Rollback is a no-op marker for the same
+    reason; state is restored by the R full-refresh rebuild.</comment>
+    <sql>SELECT 1</sql>
+    <rollback>
+      <sql>SELECT 1</sql>
+    </rollback>
+  </changeSet>
+
+</databaseChangeLog>
