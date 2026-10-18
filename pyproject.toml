@@ -1,0 +1,16 @@
+# pyproject.toml — U1 lint gate (Iteration 1, Unit U1).
+# Ruff config scoped to the upcoming admin/ service (Python, Cloud Run).
+# No Python sources exist yet; `ruff check --config pyproject.toml .` is green on the clean tree.
+# F-rules (incl. F401 unused-import) stay enabled so scratch violations flip red.
+[project]
+name = "sailing-channel-dashboard-admin"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+# Scope: the upcoming admin/ service is the only Python source tree.
+src = ["admin"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["F"]

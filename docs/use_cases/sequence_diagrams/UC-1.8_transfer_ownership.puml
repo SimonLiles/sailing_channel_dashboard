@@ -1,0 +1,65 @@
+@startuml UC-1.8_transfer_ownership
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-1.8 — Transfer Ownership
+
+actor "Owner" as Owner
+participant "Role Management\n[presentation]" as RoleMgmt
+participant "User Management Service\n[application]" as UserMgmtSvc
+database "CloudSQL\n[data store]" as CloudSQL
+participant "Audit Service\n[application]" as AuditSvc
+
+Owner -> RoleMgmt : navigate to Users page;\nselect "Transfer Ownership"
+activate RoleMgmt
+
+RoleMgmt -> UserMgmtSvc : list eligible targets
+activate UserMgmtSvc
+UserMgmtSvc -> CloudSQL : query active admin accounts\n(excluding current Owner)
+activate CloudSQL
+CloudSQL --> UserMgmtSvc : admin accounts
+deactivate CloudSQL
+UserMgmtSvc --> RoleMgmt : eligible targets
+deactivate UserMgmtSvc
+
+RoleMgmt -> RoleMgmt : display transfer interface
+
+Owner -> RoleMgmt : select target administrator
+
+RoleMgmt -> RoleMgmt : display prominent warning\n(ownership transfer, irreversible)
+
+alt Owner does not confirm
+  RoleMgmt --> Owner : take no action
+  deactivate RoleMgmt
+  stop
+
+else Confirmed — proceed
+  Owner -> RoleMgmt : confirm transfer
+
+  RoleMgmt -> UserMgmtSvc : transferOwnership\n(currentOwnerId, targetId)
+  activate UserMgmtSvc
+
+  UserMgmtSvc -> CloudSQL : atomically:\nset current Owner role = Super Admin;\ntarget role = Owner
+  activate CloudSQL
+  CloudSQL --> UserMgmtSvc : ok
+  deactivate CloudSQL
+
+  UserMgmtSvc -> UserMgmtSvc : enforce invariant:\nexactly one Owner exists
+
+  UserMgmtSvc -> AuditSvc : record: Ownership transferred\n(previous Owner, new Owner, timestamp)
+  activate AuditSvc
+  AuditSvc -> CloudSQL : append audit record
+  CloudSQL --> AuditSvc : ok
+  AuditSvc --> UserMgmtSvc : ok
+  deactivate AuditSvc
+
+  UserMgmtSvc --> RoleMgmt : Success(transferResult)
+  deactivate UserMgmtSvc
+  RoleMgmt --> Owner : show confirmation
+  note right of Owner
+    Previous Owner's session continues
+    with Super Admin capabilities.
+  end note
+  deactivate RoleMgmt
+end
+
+@enduml

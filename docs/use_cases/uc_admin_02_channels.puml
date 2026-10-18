@@ -1,0 +1,130 @@
+@startuml uc_admin_02_channels
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+skinparam actorStyle awesome
+
+title <size:18><b>Domain 2 — Channel Management</b></size>\nUse Case Detail
+
+left to right direction
+
+actor "Owner" as Owner #E8F5E9
+actor "Super Admin" as SuperAdmin #E3F2FD
+actor "Channel Manager" as ChanMgr #FFF3E0
+actor "YouTube\nData API" as YTAPI #FFECB3
+database "BigQuery\nchannel_dimensions" as BQ #E3F2FD
+
+rectangle "Administration System" {
+
+  package "Inventory" as InvPkg #FFF3E0 {
+    usecase "UC-2.1\nView Channel\nInventory" as UC21
+  }
+
+  package "Individual Channel Operations" as IndivPkg #FFE0B2 {
+    usecase "UC-2.2\nAdd Channel" as UC22
+    usecase "UC-2.3\nDeactivate\nChannel" as UC23
+    usecase "UC-2.4\nReactivate\nChannel" as UC24
+  }
+
+  package "Bulk Operations" as BulkPkg #FFCC80 {
+    usecase "UC-2.5\nBulk Import\nChannels" as UC25
+    usecase "UC-2.6\nReview Bulk\nImport" as UC26
+    usecase "UC-2.7\nReview Import\nResults" as UC27
+  }
+
+  package "Channel Add Sub-behaviors" as AddSubPkg #FFE0B2 {
+    usecase "Validate\nChannel Handle" as ValHandle
+    usecase "Resolve\nChannel ID" as ResolveID
+    usecase "Retrieve YouTube\nMetadata" as RetMeta
+    usecase "Confirm Channel\nAddition" as ConfAdd
+  }
+}
+
+' === Actor connections ===
+Owner --> UC21
+Owner --> UC22
+Owner --> UC23
+Owner --> UC24
+Owner --> UC25
+Owner --> UC26
+Owner --> UC27
+
+SuperAdmin --> UC21
+SuperAdmin --> UC22
+SuperAdmin --> UC23
+SuperAdmin --> UC24
+SuperAdmin --> UC25
+SuperAdmin --> UC26
+SuperAdmin --> UC27
+
+ChanMgr --> UC21
+ChanMgr --> UC22
+ChanMgr --> UC23
+ChanMgr --> UC24
+ChanMgr --> UC25
+ChanMgr --> UC26
+ChanMgr --> UC27
+
+' === System connections ===
+UC22 ..> YTAPI : <<include>>\nHandle resolution
+UC22 ..> BQ : <<include>>\nInsert channel
+UC23 ..> BQ : <<include>>\nSet is_active = FALSE
+UC24 ..> BQ : <<include>>\nSet is_active = TRUE
+UC25 ..> YTAPI : <<include>>\nBulk resolution
+
+' === Include/Extend relationships for Add Channel ===
+UC22 ..> ValHandle : <<include>>
+UC22 ..> ResolveID : <<include>>
+UC22 ..> RetMeta : <<include>>
+UC22 ..> ConfAdd : <<include>>
+
+' === Bulk import sub-behaviors ===
+UC25 ..> UC26 : <<include>>\nPreview before commit
+UC26 ..> UC27 : <<include>>\nResults after commit
+
+' === Extend: Reactivate within Add ===
+UC24 <.. UC22 : <<extend>>\nExisting inactive\nchannel
+
+' === Notes ===
+note bottom of UC21
+  **Displays:** title, handle,
+  channel_id, status, date_added,
+  added_by, last_updated, ETL status.
+  **Metadata is read-only** (BR-008).
+end note
+
+note bottom of UC22
+  **Workflow:** Enter handle → validate →
+  resolve to channel_id → check inventory →
+  retrieve metadata → confirm → insert.
+  **No ETL trigger** in V1.
+end note
+
+note bottom of UC23
+  **Deactivation** (not deletion):
+  is_active = FALSE.
+  Historical data preserved.
+end note
+
+note bottom of UC25
+  **Supported formats:** CSV, XLSX.
+  **Schema:** channel handle.
+  **Rules:** Independent row commit,
+  explicit inactive reactivation.
+end note
+
+note right of ValHandle
+  Handle is a lookup
+  mechanism, not
+  authoritative identity.
+  channel_id is truth.
+end note
+
+note right of ResolveID
+  Resolves handle to
+  YouTube channel_id
+  via Data API v3.
+end note
+
+@enduml

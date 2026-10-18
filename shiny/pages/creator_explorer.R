@@ -60,8 +60,106 @@ creator_explorer_server <- function(input, output, session) {
   output$channel_dashboard_ui <- renderUI({
     req(input$selected_channel)
 
+    prof <- channel_profile()
+    hist <- channel_history()
+
+    # Coalesced profile fields (cold-start safe: a 0-row profile yields
+    # NULL/empty, a 1-row unenriched profile yields NA).
+    channel_title <- coalesce_profile_field(prof$channel_title)
+    channel_handle <- coalesce_profile_field(prof$channel_handle)
+    channel_description <- coalesce_profile_field(prof$channel_description)
+    channel_join_date <- coalesce_profile_field(prof$join_date)
+    channel_pic <- prof$profile_pic
+    if (is.null(channel_pic) || length(channel_pic) == 0 ||
+        isTRUE(is.na(channel_pic))) {
+      channel_pic <- NULL
+    }
+    channel_status <- coalesce_profile_field(prof$status, fallback = "Sailing")
+    channel_type <- coalesce_profile_field(prof$type, fallback = "Sailing Vlog")
+    channel_link <- if (identical(channel_handle, "N/A")) {
+      NULL
+    } else {
+      paste0("https://www.youtube.com/", channel_handle)
+    }
+
+    # Latest metric values (NA-safe tails: NULL/empty/NA -> NA_real_).
+    last_subs <- safe_tail1(hist$subscriber_count)
+    last_daily_views <- safe_tail1(hist$daily_new_views)
+    last_videos <- safe_tail1(hist$video_count)
+    last_avg7 <- safe_tail1(hist$views_moving_avg_7d)
+
+    pending_notice_ui <- tags$div(
+      class = "alert alert-info",
+      role = "alert",
+      icon("circle-info", lib = "font-awesome"),
+      paste(
+        "This channel was recently added — its metrics are still",
+        "populating. Check back after the next ETL run."
+      )
+    )
+
+    header_ui <- fluidRow(
+      column(
+        width = 2,
+        htmlOutput("profile_card"),
+      ),
+      column(
+        width = 5,
+        h2(channel_title),
+        p(channel_handle),
+        p(paste("Joined:", channel_join_date)),
+        p(paste("Status:", channel_status)),
+        p(paste("Type:", channel_type)),
+      ),
+      column(
+        width = 3,
+        actionButton(
+          "channel_link",
+          label = "Find on YouTube",
+          icon = icon("external-link-alt"),
+          onclick = if (is.null(channel_link)) {
+            NULL
+          } else {
+            paste0("window.open('", channel_link, "', '_blank');")
+          },
+        )
+      )
+    )
+
+    # Cold-start: channel added, ETL enrichment pending — no history yet.
+    # Render the profile header plus a notice instead of crashing.
+    if (is.null(hist) || nrow(hist) == 0) {
+      return(
+        tagList(
+          header_ui,
+          br(),
+          h3("About:"),
+          p(channel_description),
+          br(),
+          pending_notice_ui,
+        )
+      )
+    }
+
     # Time series plots ----
     output$subscriber_count_ts_plot <- renderPlotly({
+      if (!has_series(channel_history()$subscriber_count)) {
+        return(
+          plot_ly() %>%
+            layout(
+              annotations = list(
+                text = "Insufficient history",
+                showarrow = FALSE,
+                font = list(color = "black")
+              ),
+              xaxis = list(visible = F, showgrid = F),
+              yaxis = list(visible = F, showgrid = F),
+              paper_bgcolor = "transparent",
+              plot_bgcolor = "transparent"
+            ) %>%
+            plotly::config(displayModeBar = F)
+        )
+      }
       plot_ly(channel_history()) %>%
         add_lines(
           x = ~date, y = ~subscriber_count,
@@ -89,6 +187,23 @@ creator_explorer_server <- function(input, output, session) {
     })
 
     output$daily_views_ts_plot <- renderPlotly({
+      if (!has_series(channel_history()$daily_new_views)) {
+        return(
+          plot_ly() %>%
+            layout(
+              annotations = list(
+                text = "Insufficient history",
+                showarrow = FALSE,
+                font = list(color = "black")
+              ),
+              xaxis = list(visible = F, showgrid = F),
+              yaxis = list(visible = F, showgrid = F),
+              paper_bgcolor = "transparent",
+              plot_bgcolor = "transparent"
+            ) %>%
+            plotly::config(displayModeBar = F)
+        )
+      }
       plot_ly(channel_history()) %>%
         add_lines(
           x = ~date, y = ~daily_new_views,
@@ -116,6 +231,23 @@ creator_explorer_server <- function(input, output, session) {
     })
 
     output$video_count_ts_plot <- renderPlotly({
+      if (!has_series(channel_history()$video_count)) {
+        return(
+          plot_ly() %>%
+            layout(
+              annotations = list(
+                text = "Insufficient history",
+                showarrow = FALSE,
+                font = list(color = "black")
+              ),
+              xaxis = list(visible = F, showgrid = F),
+              yaxis = list(visible = F, showgrid = F),
+              paper_bgcolor = "transparent",
+              plot_bgcolor = "transparent"
+            ) %>%
+            plotly::config(displayModeBar = F)
+        )
+      }
       plot_ly(channel_history()) %>%
         add_lines(
           x = ~date, y = ~video_count,
@@ -143,6 +275,23 @@ creator_explorer_server <- function(input, output, session) {
     })
 
     output$views_7d_avg_ts_plot <- renderPlotly({
+      if (!has_series(channel_history()$views_moving_avg_7d)) {
+        return(
+          plot_ly() %>%
+            layout(
+              annotations = list(
+                text = "Insufficient history",
+                showarrow = FALSE,
+                font = list(color = "black")
+              ),
+              xaxis = list(visible = F, showgrid = F),
+              yaxis = list(visible = F, showgrid = F),
+              paper_bgcolor = "transparent",
+              plot_bgcolor = "transparent"
+            ) %>%
+            plotly::config(displayModeBar = F)
+        )
+      }
       plot_ly(channel_history()) %>%
         add_lines(
           x = ~date, y = ~views_moving_avg_7d,
@@ -169,53 +318,19 @@ creator_explorer_server <- function(input, output, session) {
         )
     })
 
-    if (is.na(channel_profile()$status)) {
-      channel_status <- "Sailing"
-    } else {
-      channel_status <- channel_profile()$status
-    }
-
-    if (is.na(channel_profile()$type)) {
-      channel_type <- "Sailing Vlog"
-    } else {
-      channel_type <- channel_profile()$type
-    }
-
     tagList(
+      # Cold-start notice: flow metrics pending ETL enrichment.
+      if (flows_pending(hist)) {
+        fluidRow(column(width = 12, pending_notice_ui))
+      },
       fluidRow(
         # About the channel ----
         column(
           width = 6,
-          fluidRow(
-            column(
-              width = 2,
-              htmlOutput("profile_card"),
-            ),
-            column(
-              width = 5,
-              h2(channel_profile()$channel_title),
-              p(channel_profile()$channel_handle),
-              p(paste("Joined:", channel_profile()$join_date)),
-              p(paste("Status:", channel_status)),
-              p(paste("Type:", channel_type)),
-            ),
-            column(
-              width = 3,
-              actionButton(
-                "channel_link",
-                label = "Find on YouTube",
-                icon = icon("external-link-alt"),
-                onclick = paste0(
-                  "window.open('https://www.youtube.com/",
-                  channel_profile()$channel_handle,
-                  "', '_blank');"
-                ),
-              )
-            )
-          ),
+          header_ui,
           br(),
           h3("About:"),
-          p(channel_profile()$channel_description),
+          p(channel_description),
         ),
 
         # Primary metrics ----
@@ -223,20 +338,14 @@ creator_explorer_server <- function(input, output, session) {
           width = 3,
           value_box(
             title = "Subscriber Count",
-            value = formatC(
-              tail(channel_history()$subscriber_count, n = 1),
-              big.mark = ",",
-            ),
+            value = format_count_safe(last_subs),
             showcase = plotlyOutput("subscriber_count_ts_plot"),
             fill = FALSE,
             full_screen = TRUE,
           ),
           value_box(
             title = "New Views (Last 24h)",
-            value = formatC(
-              tail(channel_history()$daily_new_views, n = 1),
-              big.mark = ",",
-            ),
+            value = format_count_safe(last_daily_views),
             showcase = plotlyOutput("daily_views_ts_plot"),
             fill = FALSE,
             full_screen = TRUE,
@@ -246,19 +355,14 @@ creator_explorer_server <- function(input, output, session) {
           width = 3,
           value_box(
             title = "Video Count",
-            value = formatC(
-              tail(channel_history()$video_count, n = 1),
-              big.mark = ",",
-            ),
+            value = format_count_safe(last_videos),
             showcase = plotlyOutput("video_count_ts_plot"),
             fill = FALSE,
             full_screen = TRUE,
           ),
           value_box(
             title = "7 Day Average Views",
-            value = format_dashboard_value(
-              tail(channel_history()$views_moving_avg_7d, n = 1),
-            ),
+            value = format_dashboard_value(last_avg7),
             showcase = plotlyOutput("views_7d_avg_ts_plot"),
             fill = FALSE,
             full_screen = TRUE,
@@ -280,13 +384,13 @@ creator_explorer_server <- function(input, output, session) {
         ),
       ),
 
-      # Negative value footnote
-      if (any(c(
-        tail(channel_history()$subscriber_count, n = 1),
-        tail(channel_history()$daily_new_views, n = 1),
-        tail(channel_history()$video_count, n = 1),
-        tail(channel_history()$views_moving_avg_7d, n = 1)
-      ) < 0)) {
+      # Negative value footnote (NA-safe: cold-start NA tails -> FALSE)
+      if (show_negative_note(list(
+        subscriber_count = hist$subscriber_count,
+        daily_new_views = hist$daily_new_views,
+        video_count = hist$video_count,
+        views_moving_avg_7d = hist$views_moving_avg_7d
+      ))) {
         tags$p(
           class = "text-muted fst-italic mt-3 px-3",
           icon("circle-info", lib = "font-awesome"),
@@ -299,9 +403,18 @@ creator_explorer_server <- function(input, output, session) {
   })
 
   output$profile_card <- renderUI({
-    req(channel_profile())
+    pic <- channel_profile()$profile_pic
+    if (is.null(pic) || length(pic) == 0 || isTRUE(is.na(pic))) {
+      return(
+        tags$div(
+          class = "text-muted text-center",
+          style = "border-radius: 10px; background-color: #f0f0f0; padding: 2rem 0;",
+          icon("user", lib = "font-awesome")
+        )
+      )
+    }
     tags$img(
-      src = channel_profile()$profile_pic,
+      src = pic,
       width = "100%",
       style = "border-radius: 10px;"
     )

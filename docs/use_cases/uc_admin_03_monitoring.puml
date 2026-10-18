@@ -1,0 +1,123 @@
+@startuml uc_admin_03_monitoring
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+skinparam actorStyle awesome
+
+title <size:18><b>Domain 3 — Monitoring</b></size>\nUse Case Detail
+
+left to right direction
+
+actor "Owner" as Owner #E8F5E9
+actor "Super Admin" as SuperAdmin #E3F2FD
+actor "Channel Manager" as ChanMgr #FFF3E0
+actor "Analyst" as Analyst #F3E5F5
+
+rectangle "Administration System" {
+
+  package "Operational Overview" as OpsPkg #E3F2FD {
+    usecase "UC-3.1\nView Admin\nHome Dashboard" as UC31
+  }
+
+  package "Usage Analytics" as UsagePkg #BBDEFB {
+    usecase "UC-3.2\nView Usage\nAnalytics" as UC32
+    usecase "UC-3.6\nView Channel\nInterest" as UC36
+  }
+
+  package "Health Monitoring" as HealthPkg #90CAF9 {
+    usecase "UC-3.3\nView ETL\nHealth" as UC33
+    usecase "UC-3.4\nView Data\nFreshness" as UC34
+    usecase "UC-3.5\nView Dashboard\nHealth" as UC35
+  }
+}
+
+' === External data sources ===
+database "BigQuery\nAnalytical Data" as BQ #E3F2FD
+database "Google\nAnalytics" as GA #FFECB3
+database "ETL\nMetadata" as ETL #FFF3E0
+database "Cloud Run\nHealth" as CR #C8E6C9
+
+' === Actor connections ===
+Owner --> UC31
+Owner --> UC32
+Owner --> UC33
+Owner --> UC34
+Owner --> UC35
+Owner --> UC36
+
+SuperAdmin --> UC31
+SuperAdmin --> UC32
+SuperAdmin --> UC33
+SuperAdmin --> UC34
+SuperAdmin --> UC35
+SuperAdmin --> UC36
+
+ChanMgr --> UC31
+ChanMgr --> UC33
+ChanMgr --> UC34
+ChanMgr --> UC35
+
+Analyst --> UC31
+Analyst --> UC32
+Analyst --> UC36
+
+' === System data flows ===
+UC31 ..> BQ : <<include>>
+UC31 ..> GA : <<include>>
+UC31 ..> ETL : <<include>>
+UC31 ..> CR : <<include>>
+UC32 ..> GA : <<include>>
+UC33 ..> ETL : <<include>>
+UC34 ..> BQ : <<include>>
+UC35 ..> CR : <<include>>
+UC36 ..> GA : <<include>>
+
+' === Notes ===
+note bottom of UC31
+  **Home page answers:**
+  "Is the Sailing Channel Dashboard
+  operating correctly right now?"
+  -----
+  Sections: Dashboard, ETL, System.
+  **Mobile-first** design.
+end note
+
+note bottom of UC32
+  **Metrics:** unique users, sessions,
+  page views, geographic, device,
+  acquisition source.
+  **Source:** Google Analytics.
+  **Privacy:** aggregated only, no PII.
+end note
+
+note bottom of UC33
+  **Displays:** last execution, last
+  success, duration, channels
+  processed/successful/failed.
+  **No controls:** cannot trigger,
+  cancel, or retry ETL.
+end note
+
+note bottom of UC34
+  **Displays:** most recent analytical
+  date, data currency vs schedule,
+  recent ETL success, channel
+  processing failures.
+end note
+
+note bottom of UC35
+  **Displays:** availability, request
+  errors, HTTP errors, latency,
+  recent failures. YouTube API
+  failures (quota, auth, request).
+end note
+
+note bottom of UC36
+  **Definition (V1):** User looks up
+  a channel through Channel Explorer
+  or Growth Benchmarks.
+  **Extensible** event taxonomy.
+end note
+
+@enduml

@@ -1,0 +1,56 @@
+@startuml UC-1.1_authenticate_admin
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-1.1 — Authenticate Administrator
+
+actor "Authenticated User" as Actor
+participant "Sign-in Page\n[presentation]" as SignIn
+participant "Authentication Service\n[application]" as AuthService
+participant "Authorization / RBAC Engine\n[application]" as AuthzEngine
+participant "Google Identity Provider\n[external]" as Google
+database "CloudSQL\n[data store]" as CloudSQL
+
+Actor -> SignIn : navigate to Admin System URL
+activate SignIn
+
+SignIn -> AuthService : initiate authentication
+activate AuthService
+
+AuthService -> Google : redirect to Google OAuth
+activate Google
+Actor -> Google : authenticate with Google credentials
+Google --> AuthService : authenticated identity\n(identity provider ID, email)
+deactivate Google
+
+AuthService -> CloudSQL : look up identity provider\nidentifier in admin accounts
+activate CloudSQL
+
+alt No matching account
+  CloudSQL --> AuthService : not found
+  deactivate CloudSQL
+
+  AuthService --> SignIn : Failure(UnprovisionedUser)
+  deactivate AuthService
+  SignIn --> Actor : show "access denied"\n(BR-005: no auto-provision)
+  deactivate SignIn
+
+else Active administrative account found — proceed
+  CloudSQL --> AuthService : admin account record
+  deactivate CloudSQL
+
+  AuthService -> AuthService : establish authenticated session
+
+  AuthService -> AuthzEngine : evaluate role capabilities\n(UC-1.2)
+  activate AuthzEngine
+  AuthzEngine -> CloudSQL : retrieve admin account and role
+  CloudSQL --> AuthzEngine : account with role
+  AuthzEngine --> AuthService : capabilities granted
+  deactivate AuthzEngine
+
+  AuthService --> SignIn : session established
+  deactivate AuthService
+  SignIn --> Actor : render UI for assigned role
+  deactivate SignIn
+end
+
+@enduml

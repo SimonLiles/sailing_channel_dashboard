@@ -1,0 +1,170 @@
+@startuml comp_admin_system
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+
+left to right direction
+
+title <size:18><b>Sailing Channel Dashboard</b></size>\nAdministration System — Component Diagram
+
+' ============================================================
+'  PRESENTATION LAYER — Admin UI Pages
+' ============================================================
+
+package "Presentation Layer — Admin UI" {
+
+  package "Authentication" #E8F5E9 {
+    component SignIn as "Sign-in Page\nGoogle OAuth flow\nSession establishment"
+  }
+
+  package "User Management" #C8E6C9 {
+    component UsersPage as "User Management\nList administrators\nAccount status"
+    component ProvisionForm as "Provisioning Form\nEnter Google identity\nSelect role"
+    component RoleMgmt as "Role Management\nAssign / Change role\nTransfer ownership"
+    component SuspendForm as "Suspend / Deprovision\nConfirmation dialogs\nOwner protection"
+  }
+
+  package "Channel Management" #FFE0B2 {
+    component ChanInventory as "Channel Inventory\nList all channels\nFilter, Search"
+    component AddChannel as "Add Channel\nEnter handle\nPreview metadata"
+    component BulkImportUI as "Bulk Import\nCSV / XLSX upload\nImport preview"
+  }
+
+  package "Monitoring" #BBDEFB {
+    component HomeDashboard as "Admin Home Dashboard\nOperational overview\nMobile-first"
+    component UsageAnalyticsUI as "Usage Analytics\nUsers, Sessions\nGeographic, Device"
+    component ChannelInterestUI as "Channel Interest\nChannel lookups\nExtensible events"
+    component SystemHealthUI as "System Health\nETL, Data Freshness\nDashboard Health"
+  }
+
+  package "Audit" #E1BEE7 {
+    component AuditLogUI as "Audit Log\nFilter by actor, action\nAppend-only view"
+  }
+}
+
+' ============================================================
+'  APPLICATION LAYER — Backend Services
+' ============================================================
+
+package "Application Layer — Backend Services" {
+
+  component AuthService as "Authentication Service\nGoogle OAuth verification\nSession management\n\"BR-005: no auto-provision\""
+  component AuthzEngine as "Authorization / RBAC Engine\nRole evaluation (§8)\nCapability gating\n\"NFR-001: enforce RBAC\""
+  component UserMgmtSvc as "User Management Service\nCRUD admin accounts\nOwner protection (BR-003)\n\"NFR-002: traceable mutations\""
+  component ChanMgmtSvc as "Channel Management Service\nAdd, Deactivate, Reactivate\nchannel_id = truth (BR-006)\n\"NFR-006: no corruption\""
+  component BulkImportSvc as "Bulk Import Service\nParse CSV/XLSX\nRow-level independent commit\n\"BR-015: partial success OK\""
+  component AnalyticsSvc as "Analytics Service\nAggregated metrics only\nNo PII (BR-018, NFR-008)"
+  component HealthSvc as "Health Monitoring Service\nETL health, Data freshness\nDashboard availability\n\"BR-019: observe, don't control\""
+  component AuditSvc as "Audit Service\nAppend-only records\nImmutable (BR-016)\n\"NFR-002: every mutation traced\""
+}
+
+' ============================================================
+'  DATA STORES
+' ============================================================
+
+package "Data Stores" {
+  database CloudSQL as "CloudSQL\nAdministrative Accounts\nRole, Status, Identity\n---\nAudit Records\nImmutable, append-only"
+  database BigQuery as "BigQuery\nchannel_dimensions\nis_active, metadata\n---\nAnalytical Data\nFacts, marts, apps"
+  database ETLMeta as "ETL Metadata\nLast execution\nDuration, channel counts\nSuccess / failure status"
+}
+
+' ============================================================
+'  EXTERNAL SYSTEMS
+' ============================================================
+
+package "External Systems" #F5F5F5 {
+  component GoogleIDP as "Google Identity Provider\nOAuth 2.0 / OpenID Connect\nIndividual or Workspace"
+  component YTDataAPI as "YouTube Data API v3\nHandle → channel_id resolution\nChannel metadata retrieval"
+  component GoogleAnalytics as "Google Analytics\nUsage metrics (aggregated)\nChannel interest events"
+  component CloudRun as "Cloud Run Service\nPublic Dashboard (Shiny)\nMonitored for health\n\"NFR-010: admin ≠ data store\""
+  component ETLPipeline as "ETL Pipeline\nCloud Run Job (daily)\nYouTube → BigQuery\n\"BR-013: failures don't deactivate\""
+}
+
+' ============================================================
+'  RELATIONSHIPS — UI → Backend Services
+' ============================================================
+
+SignIn -down-> AuthService : "authenticates"
+UsersPage -down-> UserMgmtSvc : "account operations"
+RoleMgmt -down-> UserMgmtSvc : "role changes"
+ProvisionForm -down-> UserMgmtSvc : "create account"
+SuspendForm -down-> UserMgmtSvc : "suspend / deprovision"
+
+ChanInventory -down-> ChanMgmtSvc : "view inventory"
+AddChannel -down-> ChanMgmtSvc : "add channel"
+BulkImportUI -down-> BulkImportSvc : "bulk import"
+
+HomeDashboard -down-> HealthSvc : "operational overview"
+HomeDashboard -down-> AnalyticsSvc : "visitor metrics"
+SystemHealthUI -down-> HealthSvc : "health details"
+UsageAnalyticsUI -down-> AnalyticsSvc : "usage metrics"
+ChannelInterestUI -down-> AnalyticsSvc : "channel interest"
+
+AuditLogUI -down-> AuditSvc : "view audit log"
+
+' ============================================================
+'  RELATIONSHIPS — Backend Services → Auth
+' ============================================================
+
+AuthService -left-> GoogleIDP : "verify identity"
+AuthService -right-> AuthzEngine : "evaluate role"
+
+' ============================================================
+'  RELATIONSHIPS — Backend Services → Data Stores
+' ============================================================
+
+UserMgmtSvc -down-> CloudSQL : "read / write admin accounts"
+ChanMgmtSvc -down-> BigQuery : "read / write channel_dimensions"
+BulkImportSvc -down-> BigQuery : "write channel_dimensions"
+AnalyticsSvc -down-> BigQuery : "read analytical data"
+AuditSvc -down-> CloudSQL : "append audit records"
+
+' ============================================================
+'  RELATIONSHIPS — Backend Services → External APIs
+' ============================================================
+
+ChanMgmtSvc -right-> YTDataAPI : "resolve handle → channel_id\nretrieve metadata"
+BulkImportSvc -right-> YTDataAPI : "bulk handle resolution"
+AnalyticsSvc -right-> GoogleAnalytics : "usage & interest data"
+HealthSvc -down-> ETLMeta : "read ETL status"
+
+' ============================================================
+'  RELATIONSHIPS — Cross-system
+' ============================================================
+
+CloudRun -left-> ETLPipeline : "shares BigQuery dataset"
+ETLPipeline -down-> BigQuery : "write analytical data"
+
+' ============================================================
+'  RELATIONSHIPS — User Mgmt sub-behaviors
+' ============================================================
+
+ProvisionForm .right.> RoleMgmt : "<<extend>>\nincludes role assignment"
+SuspendForm .right.> UsersPage : "<<extend>>\nback to user list"
+
+' ============================================================
+'  LEGEND
+' ============================================================
+
+legend right
+  <b>Legend</b>
+  <#E8F5E9> Authentication
+  <#C8E6C9> User Management
+  <#FFE0B2> Channel Management
+  <#BBDEFB> Monitoring
+  <#E1BEE7> Audit
+  <#F5F5F5> External Systems
+  -----
+  Solid arrow = direct dependency
+  Dashed arrow = <<extend>> / <<include>>
+  -----
+  <b>Key Invariants:</b>
+  BR-001: Exactly one Owner
+  BR-006: channel_id is truth
+  BR-016: Audit is immutable
+  NFR-001: RBAC enforced
+  NFR-002: Every mutation traced
+endlegend
+
+@enduml

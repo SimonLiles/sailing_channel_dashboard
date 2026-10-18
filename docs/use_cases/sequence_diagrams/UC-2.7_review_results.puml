@@ -1,0 +1,27 @@
+@startuml UC-2.7_review_results
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-2.7 — Review Import Results
+
+participant "Bulk Import\n[presentation]" as BulkImportUI
+participant "Bulk Import Service\n[application]" as BulkImportSvc
+actor "Owner / Super Admin /\nChannel Manager" as Actor
+
+note over BulkImportUI
+  Triggered after UC-2.5 commits
+  the bulk import (steps 8–9).
+end note
+
+BulkImportSvc -> BulkImportUI : send results report
+activate BulkImportUI
+
+BulkImportUI -> BulkImportUI : generate results report\n(total rows, successfully added,\nsuccessfully reactivated,\nalready active, invalid handles,\nAPI errors, other errors,\nduplicate rows)
+
+BulkImportUI -> BulkImportUI : display report;\nprovide row-level detail for\nunsuccessful operations
+
+BulkImportUI --> Actor : show results report
+deactivate BulkImportUI
+
+Actor -> Actor : review import results
+
+@enduml

@@ -1,0 +1,70 @@
+@startuml UC-1.6_assign_role
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-1.6 — Assign Role
+
+actor "Owner / Super Admin" as Actor
+participant "Role Management\n[presentation]" as RoleMgmt
+participant "User Management Service\n[application]" as UserMgmtSvc
+participant "Authorization / RBAC Engine\n[application]" as AuthzEngine
+database "CloudSQL\n[data store]" as CloudSQL
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> RoleMgmt : navigate to Users page;\nselect target; select "Change Role"
+activate RoleMgmt
+
+RoleMgmt -> UserMgmtSvc : look up target account
+activate UserMgmtSvc
+UserMgmtSvc -> CloudSQL : query admin account and role
+activate CloudSQL
+CloudSQL --> UserMgmtSvc : account with role
+deactivate CloudSQL
+UserMgmtSvc --> RoleMgmt : current details and role
+deactivate UserMgmtSvc
+
+RoleMgmt -> RoleMgmt : present available roles
+
+Actor -> RoleMgmt : select new role
+
+alt Target is the Owner
+  RoleMgmt --> Actor : reject: Owner's role\ncannot be changed (BR-003)
+  stop
+
+elseif New role same as current
+  RoleMgmt --> Actor : inform: no change needed
+  stop
+
+elseif Super Admin cannot assign Owner
+  RoleMgmt --> Actor : reject: Super Admin\ncannot assign Owner (BR-004)
+  stop
+
+else Valid — proceed
+  RoleMgmt -> UserMgmtSvc : update role(targetId, newRole)
+  activate UserMgmtSvc
+
+  UserMgmtSvc -> AuthzEngine : validate authority
+  activate AuthzEngine
+  AuthzEngine --> UserMgmtSvc : authorized
+  deactivate AuthzEngine
+
+  UserMgmtSvc -> CloudSQL : update role in admin account
+  activate CloudSQL
+  CloudSQL --> UserMgmtSvc : ok
+  deactivate CloudSQL
+
+  UserMgmtSvc -> UserMgmtSvc : role change takes effect\nimmediately
+
+  UserMgmtSvc -> AuditSvc : record: Administrator role changed\n(actor, target, previous role, new role, timestamp)
+  activate AuditSvc
+  AuditSvc -> CloudSQL : append audit record
+  CloudSQL --> AuditSvc : ok
+  AuditSvc --> UserMgmtSvc : ok
+  deactivate AuditSvc
+
+  UserMgmtSvc --> RoleMgmt : Success(account)
+  deactivate UserMgmtSvc
+  RoleMgmt --> Actor : show confirmation
+  deactivate RoleMgmt
+end
+
+@enduml

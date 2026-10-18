@@ -1,0 +1,44 @@
+@startuml UC-1.2_authorize_admin
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-1.2 — Authorize Administrator
+
+participant "Authentication Service\n[application]" as AuthService
+participant "Authorization / RBAC Engine\n[application]" as AuthzEngine
+database "CloudSQL\n[data store]" as CloudSQL
+participant "Sign-in Page\n[presentation]" as SignIn
+
+note over AuthService
+  Triggered automatically after
+  UC-1.1 establishes an authenticated session.
+end note
+
+AuthService -> AuthzEngine : evaluate role capabilities
+activate AuthzEngine
+
+AuthzEngine -> CloudSQL : retrieve admin account\nand assigned role
+activate CloudSQL
+CloudSQL --> AuthzEngine : account with role
+deactivate CloudSQL
+
+AuthzEngine -> AuthzEngine : evaluate role's permitted\ncapabilities against\nrequested resource/action
+
+alt Role permits requested capability
+  AuthzEngine --> AuthService : access granted
+  deactivate AuthzEngine
+
+  AuthService --> SignIn : grant access;\nrender UI for role
+  note right of SignIn
+    UI elements and navigation
+    appropriate to the role
+    are rendered.
+  end note
+
+else Role does not permit
+  AuthzEngine --> AuthService : access denied
+  deactivate AuthzEngine
+
+  AuthService --> SignIn : deny access to resource;\nhide unauthorized UI elements
+end
+
+@enduml

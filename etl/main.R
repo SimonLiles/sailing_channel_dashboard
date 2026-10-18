@@ -187,6 +187,15 @@ rm(benchmark_cache); gc()
 
 message("GCS cache write complete.")
 
+# 6. Daily Parquet backup of source tables (step 6) ####
+message("Backing up source tables to Parquet...")
+tryCatch({
+  source(here("scripts", "backup_source_tables.R"))
+  run_backup(connection, project, dataset)
+}, error = function(e) {
+  warning(paste("Source table backup failed (non-fatal):", conditionMessage(e)))
+})
+
 # Clean Up #####################################################################
 message('Process Complete, cleaning up...')
 

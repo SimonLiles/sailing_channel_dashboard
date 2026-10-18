@@ -1,0 +1,57 @@
+@startuml ac_uc_3_2_usage_analytics
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E3F2FD
+  BorderColor #1565C0
+  DiamondBackgroundColor #BBDEFB
+  DiamondBorderColor #1565C0
+}
+
+title <size:18><b>UC-3.2 — View Usage Analytics</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Usage\nAnalytics page;
+
+|System|
+if (Google Analytics\nconfigured and available?) then (yes)
+else (no)
+  :Display error:\nGoogle Analytics unavailable;
+  stop
+endif
+
+:Query Google Analytics\nfor aggregated usage data;
+
+:Display usage analytics;
+note right
+  Analytics include:
+  - Unique users
+  - Sessions
+  - Page views
+  - Geographic info
+  - Device/technology info
+  - Acquisition source
+end note
+
+|Actor|
+if (Custom date\nrange needed?) then (yes)
+  :Specify custom date range;
+  |System|
+  :Re-query with custom range;\nrefresh display;
+else (no)
+endif
+
+if (Different predefined\ntime range?) then (yes)
+  :Select predefined\ntime range;
+  |System|
+  :Re-query with selected range;\nrefresh display;
+else (no)
+endif
+
+:Review aggregated\nusage analytics;
+note right: BR-018: Analytics are\naggregated; no visitor-level\nPII exposed
+stop
+
+@enduml

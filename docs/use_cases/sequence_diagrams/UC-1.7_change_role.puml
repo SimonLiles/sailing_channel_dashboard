@@ -1,0 +1,69 @@
+@startuml UC-1.7_change_role
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-1.7 — Change Role
+
+actor "Owner / Super Admin" as Actor
+participant "Role Management\n[presentation]" as RoleMgmt
+participant "User Management Service\n[application]" as UserMgmtSvc
+participant "Authorization / RBAC Engine\n[application]" as AuthzEngine
+database "CloudSQL\n[data store]" as CloudSQL
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> RoleMgmt : navigate to Users page;\ninitiate role change on target
+activate RoleMgmt
+
+RoleMgmt -> UserMgmtSvc : look up target account
+activate UserMgmtSvc
+UserMgmtSvc -> CloudSQL : query admin account and role
+activate CloudSQL
+CloudSQL --> UserMgmtSvc : account with role
+deactivate CloudSQL
+UserMgmtSvc --> RoleMgmt : current role
+deactivate UserMgmtSvc
+
+RoleMgmt -> RoleMgmt : present available roles
+
+Actor -> RoleMgmt : select new role
+
+alt Self-elevation attempted
+  RoleMgmt -> AuthzEngine : validate change
+  activate AuthzEngine
+  AuthzEngine --> RoleMgmt : reject: self-elevation (BR-004)
+  deactivate AuthzEngine
+  RoleMgmt --> Actor : reject operation
+  stop
+
+elseif Validation failed
+  RoleMgmt -> AuthzEngine : validate change
+  activate AuthzEngine
+  AuthzEngine --> RoleMgmt : reject: invalid change
+  deactivate AuthzEngine
+  RoleMgmt --> Actor : reject operation; display error
+  stop
+
+else Valid — proceed
+  RoleMgmt -> UserMgmtSvc : update role(targetId, newRole)
+  activate UserMgmtSvc
+
+  UserMgmtSvc -> CloudSQL : update role in admin account
+  activate CloudSQL
+  CloudSQL --> UserMgmtSvc : ok
+  deactivate CloudSQL
+
+  UserMgmtSvc -> UserMgmtSvc : change takes effect immediately\nor on next authorization evaluation
+
+  UserMgmtSvc -> AuditSvc : record: Administrator role changed\n(previous role, new role, timestamp)
+  activate AuditSvc
+  AuditSvc -> CloudSQL : append audit record
+  CloudSQL --> AuditSvc : ok
+  AuditSvc --> UserMgmtSvc : ok
+  deactivate AuditSvc
+
+  UserMgmtSvc --> RoleMgmt : Success(account)
+  deactivate UserMgmtSvc
+  RoleMgmt --> Actor : show confirmation
+  deactivate RoleMgmt
+end
+
+@enduml

@@ -1,0 +1,62 @@
+@startuml UC-1.5_deprovision_admin
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-1.5 — Deprovision Administrator
+
+actor "Owner / Super Admin" as Actor
+participant "Suspend / Deprovision\n[presentation]" as SuspendForm
+participant "User Management Service\n[application]" as UserMgmtSvc
+database "CloudSQL\n[data store]" as CloudSQL
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> SuspendForm : navigate to Users page;\nselect target; select "Deprovision"
+activate SuspendForm
+
+SuspendForm -> UserMgmtSvc : look up target account
+activate UserMgmtSvc
+UserMgmtSvc -> CloudSQL : query admin account
+activate CloudSQL
+CloudSQL --> UserMgmtSvc : account record
+deactivate CloudSQL
+UserMgmtSvc --> SuspendForm : account details
+deactivate UserMgmtSvc
+
+alt Target is the Owner
+  SuspendForm --> Actor : reject: "The Owner account\ncannot be deprovisioned." (BR-003)
+  stop
+
+elseif Target already deprovisioned
+  SuspendForm --> Actor : inform: account is\nalready deprovisioned
+  stop
+
+else Valid — proceed
+  SuspendForm -> SuspendForm : display account details;\nwarn permanent; prompt confirmation
+
+  Actor -> SuspendForm : confirm deprovisioning
+
+  SuspendForm -> UserMgmtSvc : deprovision account(targetId)
+  activate UserMgmtSvc
+
+  UserMgmtSvc -> CloudSQL : set status = "Deprovisioned"
+  activate CloudSQL
+  CloudSQL --> UserMgmtSvc : ok
+  deactivate CloudSQL
+
+  UserMgmtSvc -> UserMgmtSvc : terminate active sessions\nfor deprovisioned administrator
+
+  UserMgmtSvc -> UserMgmtSvc : preserve account record\nand audit history
+
+  UserMgmtSvc -> AuditSvc : record: Administrator deprovisioned\n(actor, target, timestamp)
+  activate AuditSvc
+  AuditSvc -> CloudSQL : append audit record
+  CloudSQL --> AuditSvc : ok
+  AuditSvc --> UserMgmtSvc : ok
+  deactivate AuditSvc
+
+  UserMgmtSvc --> SuspendForm : Success(account)
+  deactivate UserMgmtSvc
+  SuspendForm --> Actor : show confirmation
+  deactivate SuspendForm
+end
+
+@enduml

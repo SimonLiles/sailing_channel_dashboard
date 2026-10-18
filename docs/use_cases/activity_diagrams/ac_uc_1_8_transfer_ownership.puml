@@ -1,0 +1,52 @@
+@startuml ac_uc_1_8_transfer_ownership
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #E8F5E9
+  BorderColor #388E3C
+  DiamondBackgroundColor #C8E6C9
+  DiamondBorderColor #388E3C
+}
+
+title <size:18><b>UC-1.8 — Transfer Ownership</b></size>\nActivity Diagram
+
+|Owner|
+start
+:Navigate to Administration /\nUsers page;
+:Select "Transfer Ownership";
+
+|System|
+:Display ownership\ntransfer interface;
+
+|Owner|
+:Select target administrator\nto receive ownership;
+
+|System|
+:Display prominent warning;
+note right
+  - Ownership will be transferred
+  - Current Owner becomes
+    Super Admin (or specified)
+  - Operation is irreversible
+    through ordinary operations
+end note
+
+|Owner|
+if (Confirms\ntransfer?) then (yes)
+else (no)
+  |System|
+  :Take no action;
+  stop
+endif
+
+|System|
+:Atomically set current Owner's\nrole to Super Admin;
+:Atomically set target's\nrole to Owner;
+:Enforce invariant:\nexactly one Owner exists;
+:Record audit event:\nOwnership transferred;
+:Display confirmation;
+note right: Previous Owner's session\ncontinues with Super Admin\ncapabilities
+stop
+
+@enduml

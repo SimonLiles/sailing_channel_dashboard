@@ -1,0 +1,60 @@
+@startuml UC-1.4_suspend_admin
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-1.4 — Suspend Administrator
+
+actor "Owner / Super Admin" as Actor
+participant "Suspend / Deprovision\n[presentation]" as SuspendForm
+participant "User Management Service\n[application]" as UserMgmtSvc
+database "CloudSQL\n[data store]" as CloudSQL
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> SuspendForm : navigate to Users page;\nselect target; select "Suspend"
+activate SuspendForm
+
+SuspendForm -> UserMgmtSvc : look up target account
+activate UserMgmtSvc
+UserMgmtSvc -> CloudSQL : query admin account
+activate CloudSQL
+CloudSQL --> UserMgmtSvc : account record
+deactivate CloudSQL
+UserMgmtSvc --> SuspendForm : account details
+deactivate UserMgmtSvc
+
+alt Target is the Owner
+  SuspendForm --> Actor : reject: "The Owner account\ncannot be suspended." (BR-003)
+  stop
+
+elseif Target already suspended
+  SuspendForm --> Actor : inform: account is\nalready suspended
+  stop
+
+else Valid — proceed
+  SuspendForm -> SuspendForm : display account details;\nprompt to confirm suspension
+
+  Actor -> SuspendForm : confirm suspension
+
+  SuspendForm -> UserMgmtSvc : suspend account(targetId)
+  activate UserMgmtSvc
+
+  UserMgmtSvc -> CloudSQL : set status = "Suspended"
+  activate CloudSQL
+  CloudSQL --> UserMgmtSvc : ok
+  deactivate CloudSQL
+
+  UserMgmtSvc -> UserMgmtSvc : terminate active sessions\nfor suspended administrator
+
+  UserMgmtSvc -> AuditSvc : record: Administrator suspended\n(actor, target, previous status, timestamp)
+  activate AuditSvc
+  AuditSvc -> CloudSQL : append audit record
+  CloudSQL --> AuditSvc : ok
+  AuditSvc --> UserMgmtSvc : ok
+  deactivate AuditSvc
+
+  UserMgmtSvc --> SuspendForm : Success(account)
+  deactivate UserMgmtSvc
+  SuspendForm --> Actor : show confirmation
+  deactivate SuspendForm
+end
+
+@enduml

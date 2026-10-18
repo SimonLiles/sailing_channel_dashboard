@@ -1,0 +1,84 @@
+@startuml ac_uc_2_5_bulk_import
+
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam activity {
+  BackgroundColor #FFF3E0
+  BorderColor #E65100
+  DiamondBackgroundColor #FFE0B2
+  DiamondBorderColor #E65100
+}
+
+title <size:18><b>UC-2.5 — Bulk Import Channels</b></size>\nActivity Diagram
+
+|Actor|
+start
+:Navigate to Bulk\nImport page;
+:Upload CSV or XLSX\nfile containing channel handles;
+
+|System|
+if (Valid file\nformat?) then (yes)
+else (no)
+  :Display error:\ninvalid file format;
+  stop
+endif
+
+:Parse spreadsheet;
+if (Spreadsheet\nhas valid rows?) then (yes)
+else (no)
+  :Inform administrator:\nspreadsheet is empty;
+  stop
+endif
+
+:Validate all rows;
+note right
+  - Validate handle format
+  - Resolve handles to channel_id
+    via YouTube Data API
+  - Detect duplicate rows
+  - Check against existing inventory
+end note
+
+:Classify each row;
+note right
+  Categories:
+  - New channel
+  - Existing active (no action)
+  - Existing inactive (needs decision)
+  - Invalid handle
+  - API error
+  - Duplicate entry
+end note
+
+:Display import preview;
+
+|Actor|
+if (Inactive channels\nin preview?) then (yes)
+  :Select/confirm reactivation\nfor each inactive channel;
+else (no)
+endif
+
+:Review preview;\nconfirm bulk import;
+
+|System|
+if (Confirms\nimport?) then (yes)
+else (no)
+  :Take no action;
+  stop
+endif
+
+:Commit valid changes\nindependently;
+note right: BR-015: One failed row does\nnot roll back successful rows
+
+if (Quota exceeded\nduring resolution?) then (yes)
+  :Report quota error\nwith resolved rows;
+elseif (Per-row API\nfailures?) then (yes)
+  :Report per-row errors\nwithout aborting import;
+else (no)
+endif
+
+:Generate results report\n(UC-2.7);
+:Record audit event:\nBulk import performed;
+stop
+
+@enduml

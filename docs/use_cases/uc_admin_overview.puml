@@ -1,0 +1,150 @@
+@startuml uc_admin_overview
+
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontSize 11
+skinparam actorStyle awesome
+
+title <size:18><b>Sailing Channel Dashboard</b></size>\nAdministration System — Use Case Overview
+
+left to right direction
+
+actor "Owner" as Owner #E8F5E9
+actor "Super Admin" as SuperAdmin #E3F2FD
+actor "Channel Manager" as ChanMgr #FFF3E0
+actor "Analyst" as Analyst #F3E5F5
+
+rectangle "Administration System" {
+
+  package "1. Authentication & Authorization" as Auth #E8F5E9 {
+    usecase "UC-1.1\nAuthenticate\nAdministrator" as UC11
+    usecase "UC-1.2\nAuthorize\nAdministrator" as UC12
+    usecase "UC-1.3\nProvision\nAdministrator" as UC13
+    usecase "UC-1.4\nSuspend\nAdministrator" as UC14
+    usecase "UC-1.5\nDeprovision\nAdministrator" as UC15
+    usecase "UC-1.6\nAssign Role" as UC16
+    usecase "UC-1.7\nChange Role" as UC17
+    usecase "UC-1.8\nTransfer\nOwnership" as UC18
+  }
+
+  package "2. Channel Management" as Channels #FFF3E0 {
+    usecase "UC-2.1\nView Channel\nInventory" as UC21
+    usecase "UC-2.2\nAdd Channel" as UC22
+    usecase "UC-2.3\nDeactivate\nChannel" as UC23
+    usecase "UC-2.4\nReactivate\nChannel" as UC24
+    usecase "UC-2.5\nBulk Import\nChannels" as UC25
+    usecase "UC-2.6\nReview Bulk\nImport" as UC26
+    usecase "UC-2.7\nReview Import\nResults" as UC27
+  }
+
+  package "3. Monitoring" as Monitoring #E3F2FD {
+    usecase "UC-3.1\nView Admin\nHome Dashboard" as UC31
+    usecase "UC-3.2\nView Usage\nAnalytics" as UC32
+    usecase "UC-3.3\nView ETL\nHealth" as UC33
+    usecase "UC-3.4\nView Data\nFreshness" as UC34
+    usecase "UC-3.5\nView Dashboard\nHealth" as UC35
+    usecase "UC-3.6\nView Channel\nInterest" as UC36
+  }
+
+  package "4. Audit" as Audit #F3E5F5 {
+    usecase "UC-4.1\nView Audit\nLog" as UC41
+  }
+}
+
+' === Owner connections ===
+Owner --> UC11
+Owner --> UC12
+Owner --> UC13
+Owner --> UC14
+Owner --> UC15
+Owner --> UC16
+Owner --> UC17
+Owner --> UC18
+Owner --> UC21
+Owner --> UC22
+Owner --> UC23
+Owner --> UC24
+Owner --> UC25
+Owner --> UC26
+Owner --> UC27
+Owner --> UC31
+Owner --> UC32
+Owner --> UC33
+Owner --> UC34
+Owner --> UC35
+Owner --> UC36
+Owner --> UC41
+
+' === Super Admin connections ===
+SuperAdmin --> UC11
+SuperAdmin --> UC12
+SuperAdmin --> UC13
+SuperAdmin --> UC14
+SuperAdmin --> UC15
+SuperAdmin --> UC16
+SuperAdmin --> UC17
+SuperAdmin --> UC21
+SuperAdmin --> UC22
+SuperAdmin --> UC23
+SuperAdmin --> UC24
+SuperAdmin --> UC25
+SuperAdmin --> UC26
+SuperAdmin --> UC27
+SuperAdmin --> UC31
+SuperAdmin --> UC32
+SuperAdmin --> UC33
+SuperAdmin --> UC34
+SuperAdmin --> UC35
+SuperAdmin --> UC36
+SuperAdmin --> UC41
+
+' === Channel Manager connections ===
+ChanMgr --> UC11
+ChanMgr --> UC12
+ChanMgr --> UC21
+ChanMgr --> UC22
+ChanMgr --> UC23
+ChanMgr --> UC24
+ChanMgr --> UC25
+ChanMgr --> UC26
+ChanMgr --> UC27
+ChanMgr --> UC31
+ChanMgr --> UC33
+ChanMgr --> UC34
+ChanMgr --> UC35
+
+' === Analyst connections ===
+Analyst --> UC11
+Analyst --> UC12
+Analyst --> UC31
+Analyst --> UC32
+Analyst --> UC36
+
+' === Include/Extend relationships ===
+UC22 ..> UC12 : <<include>>
+UC22 ..> UC33 : <<extend>>
+UC23 ..> UC12 : <<include>>
+UC24 ..> UC12 : <<include>>
+UC25 ..> UC26 : <<include>>
+UC26 ..> UC27 : <<include>>
+UC18 ..> UC16 : <<include>>
+
+' === Legend ===
+legend right
+  <b>Legend</b>
+  <#E8F5E9> Authentication & Authorization
+  <#FFF3E0> Channel Management
+  <#E3F2FD> Monitoring
+  <#F3E5F5> Audit
+  -----
+  <b>Relationships:</b>
+  Solid line = actor participates in UC
+  Dashed ..> = <<include>> / <<extend>>
+  -----
+  UC-1.1, UC-1.2 are common
+  entry points for all actors.
+  Only Owner may Transfer
+  Ownership (UC-1.8).
+endlegend
+
+@enduml

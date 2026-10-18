@@ -1,0 +1,105 @@
+@startuml UC-2.5_bulk_import
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-2.5 — Bulk Import Channels
+
+actor "Owner / Super Admin /\nChannel Manager" as Actor
+participant "Bulk Import\n[presentation]" as BulkImportUI
+participant "Bulk Import Service\n[application]" as BulkImportSvc
+participant "YouTube Data API v3\n[external]" as YT
+database "BigQuery\nchannel_dimensions\n[data store]" as BQ
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> BulkImportUI : navigate to Bulk Import page;\nupload CSV/XLSX file
+activate BulkImportUI
+
+BulkImportUI -> BulkImportSvc : process import(file)
+activate BulkImportSvc
+
+BulkImportSvc -> BulkImportSvc : validate file format
+
+alt Invalid file format
+  BulkImportSvc --> BulkImportUI : Failure(InvalidFormat)
+  deactivate BulkImportSvc
+  BulkImportUI --> Actor : show "invalid file format" error
+  deactivate BulkImportUI
+  stop
+
+else Valid format
+end
+
+BulkImportSvc -> BulkImportSvc : parse spreadsheet
+
+alt Spreadsheet has no valid rows
+  BulkImportSvc --> BulkImportUI : Failure(EmptySpreadsheet)
+  deactivate BulkImportSvc
+  BulkImportUI --> Actor : inform: spreadsheet is empty
+  deactivate BulkImportUI
+  stop
+
+else Has valid rows
+end
+
+BulkImportSvc -> BulkImportSvc : validate all rows\n(handle format, detect duplicates)
+
+BulkImportSvc -> YT : resolve handles → channel_ids\nfor valid rows
+activate YT
+YT --> BulkImportSvc : resolved channel_ids\n+ API errors per row
+deactivate YT
+
+BulkImportSvc -> BQ : check each resolved channel\nagainst existing inventory
+activate BQ
+BQ --> BulkImportSvc : existing record statuses
+deactivate BQ
+
+BulkImportSvc -> BulkImportSvc : classify each row\n(new, active, inactive,\ninvalid, error, duplicate)
+
+BulkImportSvc --> BulkImportUI : import preview\n(classified rows)
+deactivate BulkImportSvc
+
+BulkImportUI -> BulkImportUI : display import preview
+
+alt Inactive channels in preview
+  Actor -> BulkImportUI : select/confirm reactivation\nfor each inactive channel
+else No inactive channels
+end
+
+Actor -> BulkImportUI : review preview;\nconfirm bulk import
+
+alt Confirms import
+  BulkImportUI -> BulkImportSvc : commit import
+  activate BulkImportSvc
+
+  BulkImportSvc -> BulkImportSvc : commit valid changes independently\n(BR-015: one failure does not\nroll back successful rows)
+
+  BulkImportSvc -> BQ : write channel_dimensions\n(new channels, reactivated channels)
+  activate BQ
+  BQ --> BulkImportSvc : ok (per-row)
+  deactivate BQ
+
+  alt Quota exceeded during resolution
+    BulkImportSvc -> BulkImportSvc : report quota error\nwith resolved rows
+  elseif Per-row API failures
+    BulkImportSvc -> BulkImportSvc : report per-row errors\nwithout aborting
+  end
+
+  BulkImportSvc -> AuditSvc : record: Bulk import performed\n(import ID, file type, row count,\nsuccessful count, failed count,\nper-row outcomes)
+  activate AuditSvc
+  AuditSvc -> AuditSvc : append audit record
+  AuditSvc --> BulkImportSvc : ok
+  deactivate AuditSvc
+
+  BulkImportSvc --> BulkImportUI : Success(results)
+  deactivate BulkImportSvc
+  BulkImportUI --> Actor : show results report (UC-2.7)
+  deactivate BulkImportUI
+
+else Does not confirm
+  BulkImportUI -> BulkImportSvc : cancel
+  BulkImportSvc --> BulkImportUI : ok
+  deactivate BulkImportSvc
+  BulkImportUI --> Actor : take no action
+  deactivate BulkImportUI
+end
+
+@enduml

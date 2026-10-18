@@ -1,0 +1,62 @@
+@startuml UC-2.4_reactivate_channel
+!theme plain
+
+title Sailing Channel Dashboard Admin — UC-2.4 — Reactivate Channel
+
+actor "Owner / Super Admin /\nChannel Manager" as Actor
+participant "Channel Inventory\n[presentation]" as ChanInventory
+participant "Channel Management Service\n[application]" as ChanMgmtSvc
+database "BigQuery\nchannel_dimensions\n[data store]" as BQ
+participant "Audit Service\n[application]" as AuditSvc
+
+Actor -> ChanInventory : navigate to Channel Inventory;\nselect inactive channel; select "Reactivate"
+activate ChanInventory
+
+ChanInventory -> ChanMgmtSvc : look up channel(channelId)
+activate ChanMgmtSvc
+ChanMgmtSvc -> BQ : query channel record
+activate BQ
+BQ --> ChanMgmtSvc : channel record
+deactivate BQ
+ChanMgmtSvc --> ChanInventory : channel details
+deactivate ChanMgmtSvc
+
+alt Channel not found
+  ChanInventory --> Actor : show "channel not found" error
+  deactivate ChanInventory
+  stop
+
+elseif Channel already active
+  ChanInventory --> Actor : inform: channel is\nalready active
+  deactivate ChanInventory
+  stop
+
+else Channel exists and is inactive
+end
+
+ChanInventory -> ChanInventory : display details and\nreactivation prompt\n(BR-011: explicit confirmation required)
+
+Actor -> ChanInventory : confirm reactivation
+
+ChanInventory -> ChanMgmtSvc : reactivate channel(channelId)
+activate ChanMgmtSvc
+
+ChanMgmtSvc -> BQ : set is_active = TRUE
+activate BQ
+BQ --> ChanMgmtSvc : ok
+deactivate BQ
+
+ChanMgmtSvc -> ChanMgmtSvc : preserve historical data
+
+ChanMgmtSvc -> AuditSvc : record: Channel reactivated\n(actor, channel_id, timestamp)
+activate AuditSvc
+AuditSvc -> AuditSvc : append audit record
+AuditSvc --> ChanMgmtSvc : ok
+deactivate AuditSvc
+
+ChanMgmtSvc --> ChanInventory : Success(channel)
+deactivate ChanMgmtSvc
+ChanInventory --> Actor : show confirmation\n(BR-012: collected by next ETL run)
+deactivate ChanInventory
+
+@enduml
