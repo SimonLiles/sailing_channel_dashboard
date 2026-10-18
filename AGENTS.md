@@ -45,7 +45,7 @@ Hard invariants (from `comp_admin_system.puml` legend + admin spec):
 | Schema migrate (**prod-gated**: confirm `DATASET`/`ETL_ENV` first) | `Rscript scripts/migrate_schema.R` |
 | Backfill marts (**prod-gated**) | `Rscript scripts/backfill_marts.R --start_date=YYYY-MM-DD --end_date=YYYY-MM-DD` |
 | Deploy | CI on push to `main` (test → build → migrate → deploy); manual `./deploy.sh` is legacy |
-| Lint (adopted OQ-2; tooling TBD) | Proposed: lintr (R), ruff (Python admin) — configure, then gate |
+| Lint (U1 gates) | `Rscript -e "lintr::lint_dir('.')"` (R, config `.lintr.R`); `ruff check --config pyproject.toml .` (Python admin/, config `pyproject.toml`) |
 | Codegen / Import-check | Not configured — no generators, no import verifier |
 
 ## Layer Rules

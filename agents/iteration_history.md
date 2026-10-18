@@ -16,7 +16,8 @@
 
 | It | Goal | Key Deliverables | Status |
 |---|---|---|---|
-| 1 | Platform & CI/CD modernization | Lint gates (lintr+ruff), Terraform full-adopt, Liquibase + SQL tests, required PR checks + Trivy advisory | Not started |
+| 1 | Platform & CI/CD modernization | Lint gates (lintr+ruff), Terraform full-adopt, Liquibase + SQL tests, required PR checks + Trivy advisory | Completed |
+| 1B | Prod-dataset deletion protection + daily backups | Daily Parquet backup (ETL step 6), 60-day lifecycle, tf deletion-guard contract, IAM deny, restore runbook + rehearsal | Completed |
 | 2 | Auth & user management (UC-1.x) | Python service: Google-OAuth sign-in, RBAC engine, provision/suspend/deprovision, roles, ownership transfer | Not started |
 | 3 | Channel management (UC-2.x) | Inventory, add (handle→`channel_id`), deactivate/reactivate, bulk import | Not started |
 | 4 | Instrumentation, monitoring & audit (UC-3.x + UC-4.1) | Event taxonomy + Shiny logging, health-signal APIs, admin monitoring views, audit log | Not started |
@@ -41,9 +42,71 @@
 - Plan: `agents/plans/iteration_oob_creator_explorer_coldstart_plan.md`.
   Prod verification left to the user (no prod access granted).
 
-### Iteration 1
+### Iteration 1 — Platform & CI/CD modernization (2026-10-16)
 
-<!-- Append at iteration end. -->
+Built via tester → writer → verifier pipeline per unit (plan:
+`agents/plans/iteration_1_plan.md`). Full gate: 138 passed / 1 failed
+(pre-existing `test_config.R:12:3` dev-vs-prod dataset expectation,
+untouched by I1). No pipeline behavior change; `etl/`, `shiny/`,
+`sql/00-04`, `scripts/` untouched.
+
+- U1 Lint gates: `.lintr.R` (defaults), `pyproject.toml` (ruff F-rules,
+  scoped `admin/`), `lint:` CI job, AGENTS.md Commands row.
+  Tests: `tests/testthat/test_lint_gates.R` (12) + `tests/lint_red_baseline.sh`.
+- U2 Terraform scaffold-only (user decision — no live import from this
+  machine): `terraform/` (`versions.tf` tf>=1.16 + google~>6.0,
+  `backend.tf` GCS `yt-sailing-dashboard-cache`/`terraform/state`,
+  8 `import` blocks BQ-first/Cloud-Run-last, README with
+  import-then-verify), `terraform:` CI job (fmt/validate, secret-free),
+  `.gitignore` covers `.terraform/`. Tests:
+  `tests/testthat/test_terraform_adopt.R` (24) + `tests/terraform_baseline.sh`.
+  Live `import`/`plan`/`apply` deferred to the user (key
+  `app/secrets/…1a37e4c18a27.json` referenced by path only).
+- U3 Liquibase + SQL tests: `db/changelog/db.changelog-master.xml`
+  (4 changeSets, rollback each, dev-pinned, offline `validate` clean),
+  `sql/05_tests/` (cohort 16 rows + rankings 5 rows, SQLite sandbox),
+  `liquibase-dev` CI job (WIF, `DATASET=yt_sailing_data_dev`, prod path
+  Liquibase-free). Tests: `tests/testthat/test_liquibase_sql.R` (12).
+- U4 PR checks + Trivy advisory: `pull_request: [main]` trigger;
+  6 creds jobs gated off PR (`if: github.event_name != 'pull_request'`);
+  PR path secret-free (note: `YT_API_KEY` removed from CI entirely —
+  live contract tests now self-skip on main too); `trivy-fs-config`
+  (fs+config, SARIF, required) + `trivy-image` (ETL+Shiny, advisory,
+  off-PR); `docs/required-checks.md` (advisory-until-I5 per OQ-7).
+  Tests: `tests/testthat/test_pr_trivy_gates.R` (19).
+- Deferred: live tf import (user), `test_config` dev-dataset fix,
+  Trivy enforcing in I5, liquibase-bigquery CI coordinate confirmation.
+
+### Iteration 1B — Deletion protection + daily backups (2026-10-16)
+
+Built via tester → writer → verifier per unit (plan:
+`agents/plans/iteration_1b_plan.md`). Full gate: 212 passed / 1 failed
+(pre-existing `test_config.R:12:3`, untouched). Backup after marts,
+60-day retention, inside daily ETL as step 6, 2 source tables only,
+backup failure never fails ETL (~$0.02/mo steady state).
+
+- U1: `scripts/backup_source_tables.R` (`backup_prefix()` UTC date,
+  `EXPORT DATA … PARQUET` via `render_sql`/`run_sql_file`, caller's
+  connection) + 9-line failure-isolated step-6 hook in `etl/main.R`.
+  Tests: `test_backup_tables.R` (28). Mid-build conflict resolved:
+  I1-U4 guard re-scoped to allowlist the hook (still rejects other
+  `etl/|shiny/|sql/|scripts/` diffs — negative control proven).
+- U2: `docs/backup-lifecycle.json` (single Delete rule, age 60,
+  `backups/`). Tests: `test_backup_lifecycle.R` (7). Gitignore exception
+  `!docs/backup-lifecycle.json` wired (secrets `*.json` guard intact).
+- U3: `terraform/deletion_guards.md` (prevent_destroy,
+  delete_contents_on_destroy=false, deletion_protection,
+  `plan -destroy` zero-deletion acceptance, sign-off) + README pointer.
+  Tests: `test_deletion_guards.R` (12). Applied at live import, not now.
+- U4: `docs/prod-delete-deny.md` (scope, role-based principals,
+  break-glass to owner, apply + safe negative-test + rollback; zero
+  secret material). Tests: `test_prod_delete_deny.R` (11). User applies.
+- U5: `docs/restore-runbook.md` (time-travel <7d, parquet-reload >7d,
+  clone-rollback, exit criteria, DEV-ONLY guard, evidence placeholders).
+  Tests: `test_restore_runbook.R` (15). Rehearsal user-executed.
+- User-side checklist (open): apply lifecycle rule; apply IAM deny +
+  negative test; guards at tf import (`plan -destroy` + sign-off); dev
+  restore rehearsal; first-scheduled-backup check.
 
 ---
 

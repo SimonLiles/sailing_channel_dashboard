@@ -21,3 +21,9 @@ Author: Orchestrator
 May split into I4a (instrumentation) / I4b (views + audit) once taxonomy
 design lands (OQ-6). Detailed units to be drafted before build starts (per
 kit cadence). Prerequisite: Iteration 3 green.
+
+## Open Questions
+
+| OQ | Question | Owner |
+|---|---|---|
+| OQ-6 | Split I4 into I4a (instrumentation) vs I4b (views + audit)? Decide once event-taxonomy design lands (moved from I1 plan 2026-10-16 — it concerns I4 scope, not platform work) | user |

@@ -1,6 +1,6 @@
 # Iteration 1 — Platform & CI/CD modernization — Delivery Plan
 
-Status: **DRAFT — 2026-10-15**
+Status: **DELIVERED — 2026-10-16 (all 4 units tester→writer→verifier PASS; full gate 138 passed / 1 known pre-existing fail `test_config.R:12:3`)**
 Date: 2026-10-15
 Author: Orchestrator
 
@@ -199,6 +199,5 @@ Trivy baseline exported for I5.
 
 ### Open
 
-| OQ | Question | Owner |
-|---|---|---|
-| OQ-6 | Split I4 (instrumentation vs views+audit)? Decide once event-taxonomy design lands | user |
+None. OQ-6 (split I4?) moved to `agents/plans/iteration_4_plan.md`
+2026-10-16 — it concerns I4 scope, not platform work.

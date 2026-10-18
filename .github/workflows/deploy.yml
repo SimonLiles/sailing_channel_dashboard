@@ -3,6 +3,8 @@ name: Test, Build, Push and Deploy
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 env:
   PROJECT_ID: yt-sailing-dashboard
@@ -11,6 +13,52 @@ env:
   SHINY_IMAGE_BASE: us-central1-docker.pkg.dev/yt-sailing-dashboard/yt-sailing-dashboard-containers/yt-sailing-shiny
 
 jobs:
+  # Job 0: Lint gates (U1) — lintr for R, ruff for Python admin/
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Install lintr
+        run: Rscript -e "install.packages('lintr')"
+
+      - name: Lint R sources
+        run: Rscript -e "lintr::lint_dir('.')"
+
+      - name: Setup ruff
+        uses: astral-sh/setup-ruff@v4
+
+      - name: Lint Python sources
+        run: ruff check --config pyproject.toml .
+
+  # Job 0b: Terraform scaffold checks (U2) — fmt/validate only, no creds.
+  # No GCP auth, no secrets, no needs on GCP-auth jobs; trigger unchanged.
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.6
+
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive terraform
+
+      - name: Terraform init (no backend, no auth)
+        run: terraform -chdir=terraform init -backend=false -input=false
+
+      - name: Terraform validate (no auth)
+        run: terraform -chdir=terraform validate -no-color
+
   # Job 1: Run R tests before touching any infrastructure
   test:
     runs-on: ubuntu-latest
@@ -31,17 +79,116 @@ jobs:
           restore-keys: r-
 
       - name: Install R Dependencies
-        run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue', 'yaml'))"
+        run: Rscript -e "install.packages(c('testthat', 'here', 'RSQLite', 'DBI', 'glue', 'yaml', 'lintr'))"
 
       - name: Run Unit Tests
-        # YT_API_KEY injected here only for tests that need it,
-        # never passed to docker build
-        env:
-          YT_API_KEY: ${{ secrets.YT_API_KEY }}
+        # PR runs are secret-free: no key is passed here on purpose.
+        # Live YouTube contract tests self-skip without a key.
         run: Rscript tests/testthat.R
+
+  # Required PR checks (U4): lint, terraform, test, trivy-fs-config run on
+  # every pull request with NO secrets and NO GCP auth. Creds-needing jobs
+  # (build-*, migrate, liquibase-dev, deploy, trivy-image) are gated off PRs.
+  # Trivy stays Advisory until I5 (enforcing in I5 per OQ-7): findings upload
+  # as SARIF but the checks stay green (no blocking gate on trivy steps).
+
+  # Job 1b: Trivy fs + config scans (U4) — required PR check, secret-free.
+  # Filesystem + IaC misconfig findings upload as SARIF; Advisory until I5.
+  trivy-fs-config:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan (advisory, SARIF)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Trivy config scan (advisory, SARIF)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy-config.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy fs SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+      - name: Upload Trivy config SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-config.sarif
+          category: trivy-config
+
+  # Job 2c: Trivy image scans (U4) — Advisory until I5, SARIF, non-PR only.
+  # Scans the built ETL + Shiny images after push; never blocks the build.
+  trivy-image:
+    if: github.event_name != 'pull_request'
+    needs: [build-etl, build-shiny]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Trivy ETL image scan (advisory, SARIF)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.ETL_IMAGE_BASE }}:${{ github.sha }}
+          format: sarif
+          output: trivy-etl-image.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Trivy Shiny image scan (advisory, SARIF)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.SHINY_IMAGE_BASE }}:${{ github.sha }}
+          format: sarif
+          output: trivy-shiny-image.sarif
+          severity: CRITICAL,HIGH
+
+      - name: Upload Trivy ETL image SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-etl-image.sarif
+          category: trivy-etl-image
+
+      - name: Upload Trivy Shiny image SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-shiny-image.sarif
+          category: trivy-shiny-image
 
   # Job 2a: Build and push ETL image (runs in parallel with Job 2b)
   build-etl:
+    if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -70,6 +217,7 @@ jobs:
 
   # Job 2b: Build and push Shiny image (runs in parallel with Job 2a)
   build-shiny:
+    if: github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     permissions:
@@ -101,6 +249,7 @@ jobs:
   # All steps use operations that the daily ETL already runs successfully
   # (CREATE OR REPLACE, MERGE) — no CREATE PROCEDURE or CALL statements.
   migrate:
+    if: github.event_name != 'pull_request'
     needs: build-etl
     runs-on: ubuntu-latest
     permissions:
@@ -187,8 +336,57 @@ jobs:
             --project ${{ env.PROJECT_ID }} \
             --wait
 
+  # Job 3b: Liquibase changelog update scoped to the DEV dataset only (U3).
+  # `liquibase update` runs here in CI (WIF-authed, like migrate) and on dev.
+  # Never from a workstation, and NEVER against prod (guard: DATASET is pinned
+  # to yt_sailing_data_dev below; U4 wires PR triggers). The prod migrate job
+  # above stays Liquibase-free.
+  liquibase-dev:
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DATASET: yt_sailing_data_dev
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Java for Liquibase
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Liquibase with BigQuery extension
+        run: |
+          LIQUIBASE_VERSION=4.29.2
+          curl -L -o /tmp/liquibase.tar.gz \
+            "https://github.com/liquibase/liquibase/releases/download/v${LIQUIBASE_VERSION}/liquibase-${LIQUIBASE_VERSION}.tar.gz"
+          mkdir -p /tmp/liquibase && tar -xzf /tmp/liquibase.tar.gz -C /tmp/liquibase
+          curl -L -o /tmp/liquibase/lib/liquibase-bigquery.jar \
+            "https://repo1.maven.org/maven2/org/liquibase/ext/liquibase-bigquery/4.29.2/liquibase-bigquery-4.29.2.jar"
+
+      - name: Liquibase update (DEV dataset only, never prod)
+        run: |
+          /tmp/liquibase/liquibase \
+            --changelog-file=db/changelog/db.changelog-master.xml \
+            --url="jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;ProjectId=${{ env.PROJECT_ID }};DefaultDataset=${{ env.DATASET }}" \
+            -Dproject=${{ env.PROJECT_ID }} \
+            -Ddataset=${{ env.DATASET }} \
+            update
+
   # Job 4: Deploy both services only after migration is complete
   deploy:
+    if: github.event_name != 'pull_request'
     needs: [migrate, build-shiny]
     runs-on: ubuntu-latest
     permissions:
