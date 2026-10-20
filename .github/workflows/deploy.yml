@@ -397,7 +397,7 @@ jobs:
         run: |
           /tmp/liquibase/liquibase \
             --changelog-file=db/changelog/db.changelog-master.xml \
-            --url="jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;ProjectId=${{ env.PROJECT_ID }};DefaultDataset=${{ env.DATASET }}" \
+            --url="jdbc:bigquery://https://www.googleapis.com/bigquery/v2:443;ProjectId=${{ env.PROJECT_ID }};DefaultDataset=${{ env.DATASET }};OAuthType=1" \
             update
 
   # Job 4: Deploy both services only after migration is complete
